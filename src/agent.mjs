@@ -1,9 +1,31 @@
 import { Agent, BedrockModel, tool } from "@strands-agents/sdk";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
 import { z } from "zod";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+const ssm = new SSMClient({});
+
+// Resolved once per warm Lambda instance. Tries SSM first; falls back to the
+// GOOGLE_MAPS_API_KEY env var so local/.env workflows work without SSM access.
+// Production path: create /nube/google-maps-key via ssm:PutParameter and grant
+// the execution role ssm:GetParameter — the env-var fallback is never needed there.
+let resolvedMapsKey = null;
+async function getMapsApiKey() {
+  if (resolvedMapsKey) return resolvedMapsKey;
+  try {
+    const resp = await ssm.send(new GetParameterCommand({
+      Name: "/nube/google-maps-key",
+      WithDecryption: true,
+    }));
+    resolvedMapsKey = resp.Parameter.Value;
+  } catch {
+    // SSM unavailable or parameter missing — fall back to environment variable.
+    resolvedMapsKey = process.env.GOOGLE_MAPS_API_KEY ?? null;
+  }
+  return resolvedMapsKey;
+}
 
 const model = new BedrockModel({
   modelId: "global.anthropic.claude-haiku-4-5-20251001-v1:0",
@@ -41,8 +63,8 @@ const getTransitRoute = tool({
     departure_time: z.string().optional().describe("Desired departure time in ISO 8601 format, e.g. '2026-08-08T09:00:00-06:00'"),
   }),
   callback: async ({ origin, destination, departure_time }) => {
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-    if (!apiKey) return "Error: GOOGLE_MAPS_API_KEY environment variable is not set.";
+    const apiKey = await getMapsApiKey();
+    if (!apiKey) return "Error: Google Maps API key not found. Set GOOGLE_MAPS_API_KEY in .env (local) or create the SSM parameter /nube/google-maps-key (production).";
 
     let departureEpoch = "now";
     if (departure_time) {

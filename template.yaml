@@ -21,6 +21,11 @@ Resources:
         Variables:
           PRODUCTS_TABLE: product-catalog
           SESSIONS_TABLE: agent-sessions
+          # GOOGLE_MAPS_API_KEY is NOT injected here — the function reads it from
+          # SSM (/nube/google-maps-key) at runtime. In production, create that
+          # parameter with ssm:PutParameter and ensure the execution role has
+          # ssm:GetParameter. For local/workshop use, set GOOGLE_MAPS_API_KEY in
+          # a .env file (never commit it) and the code will fall back to that value.
       # Execution role is pre-created for the workshop (Bedrock + catalog read).
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/nube-agent-execution-role"
 
