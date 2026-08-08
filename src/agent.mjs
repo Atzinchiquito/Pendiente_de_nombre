@@ -4,6 +4,7 @@ import { DynamoDBDocumentClient, GetCommand, PutCommand } from "@aws-sdk/lib-dyn
 import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
 import { randomUUID } from "crypto";
 import { z } from "zod";
+import { loadProfile, saveProfile } from "./userProfile.mjs";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const ssm = new SSMClient({});

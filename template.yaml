@@ -6,6 +6,18 @@ Description: >
 
 Resources:
 
+  UserProfilesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: user-profiles
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+
   # Your agent: a Lambda function that streams its answers
   AgentFunction:
     Type: AWS::Serverless::Function
@@ -21,13 +33,54 @@ Resources:
         Variables:
           PRODUCTS_TABLE: product-catalog
           SESSIONS_TABLE: agent-sessions
-          # GOOGLE_MAPS_API_KEY is NOT injected here — the function reads it from
-          # SSM (/nube/google-maps-key) at runtime. In production, create that
-          # parameter with ssm:PutParameter and ensure the execution role has
-          # ssm:GetParameter. For local/workshop use, set GOOGLE_MAPS_API_KEY in
-          # a .env file (never commit it) and the code will fall back to that value.
-      # Execution role is pre-created for the workshop (Bedrock + catalog read).
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/nube-agent-execution-role"
+          PROFILES_TABLE: !Ref UserProfilesTable
+      Role: !GetAtt AgentRole.Arn
+
+  AgentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: nube-agent-role
+      PermissionsBoundary: !Sub "arn:aws:iam::${AWS::AccountId}:policy/hackathon-boundary"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: agent-permissions
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/product-catalog"
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/agent-sessions"
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                Resource: !GetAtt UserProfilesTable.Arn
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/nube/google-maps-key"
 
   # The front door: a REST API that streams your agent's response
   Api:
