@@ -86,9 +86,88 @@ export const CHAT_HTML = `<!DOCTYPE html>
     display: flex; align-items: center; justify-content: center;
   }
   #history-btn:hover { color: var(--text); }
+
+  /* login */
+  #login-screen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200; padding: 24px;
+  }
+  #login-screen.hidden { display: none; }
+  .login-box {
+    width: 100%; max-width: 340px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .login-box .login-icon {
+    width: 56px; height: 56px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--accent);
+  }
+  .login-box h2 { font-size: 20px; font-weight: 600; color: var(--text); }
+  .login-box p { font-size: 13px; color: var(--dim); margin-top: -12px; }
+  .login-field { display: flex; flex-direction: column; gap: 6px; }
+  .login-field label { font-size: 12px; color: var(--dim); letter-spacing: .04em; }
+  .login-field input {
+    padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--text); font-size: 15px; outline: none; width: 100%;
+  }
+  .login-field input:focus { border-color: var(--accent); }
+  .login-remember {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: var(--dim); cursor: pointer; user-select: none;
+  }
+  .login-remember input[type=checkbox] { display: none; }
+  .login-remember .check-box {
+    width: 18px; height: 18px; border: 1px solid var(--border); border-radius: 5px;
+    background: var(--panel); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s, border-color .15s;
+  }
+  .login-remember input:checked + .check-box {
+    background: var(--accent); border-color: var(--accent);
+  }
+  .login-remember .check-box svg { display: none; }
+  .login-remember input:checked + .check-box svg { display: block; }
+  #login-btn {
+    width: 100%; padding: 13px; border: none; border-radius: 12px;
+    background: var(--accent); color: #fff; font-size: 15px; font-weight: 600;
+    cursor: pointer; letter-spacing: .02em;
+  }
+  #login-btn:hover { background: var(--accent2); }
+  #login-error { font-size: 12px; color: #ff6b8a; min-height: 16px; }
 </style>
 </head>
 <body>
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-icon">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Bienvenido</h2>
+      <p>Ingresa tu nombre para comenzar</p>
+    </div>
+    <div class="login-field">
+      <label>NOMBRE</label>
+      <input id="login-name" type="text" placeholder="Tu nombre" autocomplete="name" maxlength="40">
+    </div>
+    <label class="login-remember">
+      <input type="checkbox" id="remember-me">
+      <span class="check-box">
+        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1.5 6 4.5 9 10.5 3"/>
+        </svg>
+      </span>
+      Recuérdame
+    </label>
+    <div id="login-error"></div>
+    <button id="login-btn">Entrar</button>
+  </div>
+</div>
+
 <div id="overlay"></div>
 <div id="sidebar">
   <div id="sidebar-header">
@@ -107,7 +186,8 @@ export const CHAT_HTML = `<!DOCTYPE html>
       <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
     </svg>
   </button>
-  <h1>Agente</h1>
+  <h1 style="flex:1">Agente</h1>
+  <span id="user-badge" style="font-size:12px;color:var(--dim);cursor:pointer;" title="Cerrar sesión"></span>
 </header>
 <div id="log"><div class="sys">Escribe o habla para comenzar</div></div>
 <form id="f">
@@ -130,9 +210,83 @@ const log = document.getElementById("log"), box = document.getElementById("box")
 
 const sessionId = crypto.randomUUID();
 
-// userId persists across sessions so trip history accumulates
-let userId = localStorage.getItem("userId");
-if (!userId) { userId = crypto.randomUUID(); localStorage.setItem("userId", userId); }
+// --- Login ---
+const loginScreen   = document.getElementById("login-screen");
+const loginNameInput = document.getElementById("login-name");
+const loginBtn      = document.getElementById("login-btn");
+const loginError    = document.getElementById("login-error");
+const rememberMe    = document.getElementById("remember-me");
+const userBadge     = document.getElementById("user-badge");
+
+function getCookie(name) {
+  return document.cookie.split("; ").find(r => r.startsWith(name + "="))?.split("=")[1] ?? null;
+}
+function setCookie(name, value, days) {
+  const exp = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = \`\${name}=\${encodeURIComponent(value)};expires=\${exp};path=/;SameSite=Lax\`;
+}
+function deleteCookie(name) {
+  document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+}
+
+async function userIdFromName(name) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(name.trim().toLowerCase()));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("").slice(0, 32);
+}
+
+let userId = null;
+let currentUser = null;
+
+function applySession(name, id) {
+  currentUser = name;
+  userId = id;
+  userBadge.textContent = name + " · salir";
+  document.querySelector("#sidebar-header span").textContent = \`Viajes de \${name}\`;
+  loginScreen.classList.add("hidden");
+}
+
+async function doLogin(name, remember) {
+  const id = await userIdFromName(name);
+  if (remember) {
+    setCookie("userName", name, 30);
+    setCookie("userId", id, 30);
+    sessionStorage.removeItem("userName");
+    sessionStorage.removeItem("userId");
+  } else {
+    deleteCookie("userName"); deleteCookie("userId");
+    sessionStorage.setItem("userName", name);
+    sessionStorage.setItem("userId", id);
+  }
+  applySession(name, id);
+  box.focus();
+}
+
+function doLogout() {
+  deleteCookie("userName"); deleteCookie("userId");
+  sessionStorage.removeItem("userName"); sessionStorage.removeItem("userId");
+  userId = null; currentUser = null;
+  userBadge.textContent = "";
+  loginNameInput.value = "";
+  rememberMe.checked = false;
+  loginScreen.classList.remove("hidden");
+}
+
+// Restore saved session
+const savedName = decodeURIComponent(getCookie("userName") ?? "") || sessionStorage.getItem("userName");
+const savedId   = decodeURIComponent(getCookie("userId")   ?? "") || sessionStorage.getItem("userId");
+if (savedName && savedId) {
+  if (getCookie("userName")) rememberMe.checked = true;
+  applySession(savedName, savedId);
+}
+
+loginBtn.addEventListener("click", async () => {
+  const name = loginNameInput.value.trim();
+  if (!name) { loginError.textContent = "Ingresa tu nombre para continuar."; return; }
+  loginError.textContent = "";
+  await doLogin(name, rememberMe.checked);
+});
+loginNameInput.addEventListener("keydown", e => { if (e.key === "Enter") loginBtn.click(); });
+userBadge.addEventListener("click", doLogout);
 
 function add(cls, text) {
   const d = document.createElement("div");
