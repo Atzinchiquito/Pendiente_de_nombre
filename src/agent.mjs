@@ -79,30 +79,52 @@ export async function getTrips(userId) {
 
 // ---------- Tools ----------
 
+function parseSteps(steps) {
+  return steps.map((s) => {
+    if (s.travel_mode === "WALKING") {
+      return { mode: "Caminar", duration: s.duration?.text, distance: s.distance?.text };
+    }
+    const t = s.transit_details;
+    return {
+      mode: t.line?.vehicle?.name ?? "Transporte",
+      line: t.line?.short_name ?? t.line?.name ?? "?",
+      color: t.line?.color ?? null,
+      from: t.departure_stop?.name,
+      to: t.arrival_stop?.name,
+      departure: t.departure_time?.text ?? null,
+      arrival: t.arrival_time?.text ?? null,
+      stops: t.num_stops,
+      duration: s.duration?.text,
+    };
+  });
+}
+
 const getTransitRoute = tool({
   name: "get_transit_route",
-  description: "Get public transit route, time, and transfers between two points in CDMX",
+  description: "Get up to 3 real public transit route options (Metro, Metrobús, RTP, walking legs) between two points in CDMX, with accurate times and stop names.",
   inputSchema: z.object({
-    origin: z.string().describe("Starting address or landmark in CDMX, e.g. 'Reforma 222, CDMX'"),
-    destination: z.string().describe("Destination address or landmark in CDMX, e.g. 'Ángel de la Independencia, CDMX'"),
-    departure_time: z.string().optional().describe("Desired departure time in ISO 8601 format, e.g. '2026-08-08T09:00:00-06:00'"),
+    origin: z.string().describe("Starting address or landmark in CDMX, e.g. 'Insurgentes Sur 1602, CDMX'"),
+    destination: z.string().describe("Destination address or landmark in CDMX, e.g. 'Zócalo, Ciudad de México'"),
+    departure_time: z.string().optional().describe("Desired departure time in ISO 8601 format, e.g. '2026-08-08T09:00:00-06:00'. Omit for 'now'."),
   }),
   callback: async ({ origin, destination, departure_time }) => {
     const apiKey = await getMapsApiKey();
     if (!apiKey) return "Error: Google Maps API key not found. Set GOOGLE_MAPS_API_KEY in .env (local) or create the SSM parameter /nube/google-maps-key (production).";
 
-    let departureEpoch = "now";
+    let departureEpoch = String(Math.floor(Date.now() / 1000));
     if (departure_time) {
       const ts = Math.floor(new Date(departure_time).getTime() / 1000);
       if (isNaN(ts)) return `Error: departure_time '${departure_time}' is not a valid ISO 8601 date.`;
-      departureEpoch = ts;
+      departureEpoch = String(ts);
     }
 
     const url = new URL("https://maps.googleapis.com/maps/api/directions/json");
     url.searchParams.set("origin", origin);
     url.searchParams.set("destination", destination);
     url.searchParams.set("mode", "transit");
-    url.searchParams.set("departure_time", String(departureEpoch));
+    url.searchParams.set("alternatives", "true");
+    url.searchParams.set("departure_time", departureEpoch);
+    url.searchParams.set("transit_routing_preference", "fewer_transfers");
     url.searchParams.set("language", "es");
     url.searchParams.set("region", "mx");
     url.searchParams.set("key", apiKey);
@@ -117,51 +139,103 @@ const getTransitRoute = tool({
 
     if (data.status === "REQUEST_DENIED") return `Google Maps API error: ${data.error_message ?? "invalid or missing API key."}`;
     if (data.status === "OVER_QUERY_LIMIT") return "Google Maps API error: rate limit exceeded, try again later.";
-    if (data.status === "NOT_FOUND" || data.status === "ZERO_RESULTS") return `No transit route found from '${origin}' to '${destination}'.`;
+    if (data.status === "NOT_FOUND" || data.status === "ZERO_RESULTS") return `No se encontraron rutas de transporte público de '${origin}' a '${destination}'.`;
     if (data.status !== "OK") return `Google Maps API returned status: ${data.status}.`;
 
-    const route = data.routes[0];
-    const leg = route.legs[0];
+    const routes = data.routes.slice(0, 3).map((route) => {
+      const leg = route.legs[0];
+      const transitSteps = leg.steps.filter((s) => s.travel_mode === "TRANSIT");
+      const fare = route.fare ? route.fare.text : null;
+      return {
+        summary: route.summary || `Opción vía ${transitSteps.map((s) => s.transit_details?.line?.short_name ?? s.transit_details?.line?.name ?? "?").join(" + ")}`,
+        duration_total: leg.duration?.text,
+        duration_seconds: leg.duration?.value,
+        distance: leg.distance?.text,
+        departure: leg.departure_time?.text ?? null,
+        arrival: leg.arrival_time?.text ?? null,
+        transfers: Math.max(0, transitSteps.length - 1),
+        fare,
+        steps: parseSteps(leg.steps),
+      };
+    });
 
-    const steps = leg.steps
-      .filter((s) => s.travel_mode === "TRANSIT")
-      .map((s) => {
-        const t = s.transit_details;
-        return {
-          mode: t.line?.vehicle?.name ?? "Transit",
-          line: t.line?.short_name ?? t.line?.name ?? "?",
-          from: t.departure_stop?.name,
-          to: t.arrival_stop?.name,
-          stops: t.num_stops,
-          duration: s.duration?.text,
-        };
-      });
+    return JSON.stringify({ routes });
+  },
+});
 
-    const fare = route.fare ? `${route.fare.text}` : null;
+const getWeatherCdmx = tool({
+  name: "get_weather_cdmx",
+  description: "Get current weather conditions in Mexico City (CDMX): temperature, rain probability, and a plain-language condition. Use this before estimating travel time so you can warn about rain delays or heat.",
+  inputSchema: z.object({}),
+  callback: async () => {
+    // Open-Meteo — free, no API key required. Coords: CDMX city center.
+    const url = new URL("https://api.open-meteo.com/v1/forecast");
+    url.searchParams.set("latitude", "19.4326");
+    url.searchParams.set("longitude", "-99.1332");
+    url.searchParams.set("current", "temperature_2m,relative_humidity_2m,precipitation,weathercode,windspeed_10m");
+    url.searchParams.set("hourly", "precipitation_probability");
+    url.searchParams.set("forecast_hours", "3");
+    url.searchParams.set("timezone", "America/Mexico_City");
+
+    let data;
+    try {
+      const resp = await fetch(url.toString());
+      data = await resp.json();
+    } catch (err) {
+      return `Error fetching weather: ${err.message}`;
+    }
+
+    const c = data.current;
+    // WMO weather code → human label (subset covering CDMX common cases)
+    const WMO = {
+      0: "Despejado", 1: "Mayormente despejado", 2: "Parcialmente nublado", 3: "Nublado",
+      45: "Niebla", 48: "Niebla con escarcha",
+      51: "Llovizna ligera", 53: "Llovizna moderada", 55: "Llovizna intensa",
+      61: "Lluvia ligera", 63: "Lluvia moderada", 65: "Lluvia intensa",
+      80: "Chubascos ligeros", 81: "Chubascos moderados", 82: "Chubascos intensos",
+      95: "Tormenta eléctrica", 96: "Tormenta con granizo", 99: "Tormenta con granizo intenso",
+    };
+    const condition = WMO[c.weathercode] ?? `Código WMO ${c.weathercode}`;
+
+    // Next-3h max rain probability from hourly data
+    const rainProb = data.hourly?.precipitation_probability
+      ? Math.max(...data.hourly.precipitation_probability.slice(0, 3))
+      : null;
+
+    const isRainy = c.weathercode >= 51;
+    const isHot = c.temperature_2m >= 30;
 
     return JSON.stringify({
-      duration: leg.duration?.text,
-      distance: leg.distance?.text,
-      departure: leg.departure_time?.text,
-      arrival: leg.arrival_time?.text,
-      transfers: Math.max(0, steps.length - 1),
-      steps,
-      ...(fare && { fare }),
+      condition,
+      temperature_c: c.temperature_2m,
+      humidity_pct: c.relative_humidity_2m,
+      precipitation_mm: c.precipitation,
+      wind_kmh: c.windspeed_10m,
+      rain_probability_next3h_pct: rainProb,
+      travel_warning: isRainy
+        ? "Lluvia activa — agrega 5-10 min por trasbordos a pie y posible retraso en superficie."
+        : isHot
+        ? "Calor intenso — considera hidratación y rutas con más tramos bajo techo."
+        : null,
     });
   },
 });
 
-const SYSTEM_PROMPT =
-  "You are a travel planning agent for trips within CDMX. " +
-  "Given an origin, destination, and target time, calculate total travel time, " +
-  "estimated cost, and a scheduled itinerary. " +
-  "Use your tools to get route distance/time, weather forecast, and fare estimates — never invent these values. " +
-  "Support intermediate stops (eating, showering, errands) with user-given or reasonable default durations, and recalculate the full itinerary when any stop changes. " +
-  "Factor in weather: adjust travel time and cost for rain or extreme heat, and warn the user. " +
-  "Always offer at least 2 route options (fastest and cheapest) with a clear time/cost/weather-exposure tradeoff. " +
-  "If the user gives an arrival deadline, work backward to the required departure time. " +
-  "Be transparent when a number is an estimate, not a guarantee. " +
-  "Keep responses short and scannable: a one-line summary, then the itinerary with concrete times.";
+const SYSTEM_PROMPT = `Eres un agente de planificación de viajes en transporte público dentro de la CDMX.
+
+HERRAMIENTAS DISPONIBLES:
+- get_transit_route: obtiene hasta 3 opciones de ruta real (Metro, Metrobús, RTP, tramos a pie) con tiempos, paradas y tarifa. Úsala siempre que el usuario pida una ruta.
+- get_weather_cdmx: obtiene el clima actual en CDMX (temperatura, lluvia, condición). Úsala antes de estimar tiempos para ajustar por lluvia o calor.
+
+REGLAS:
+1. Nunca inventes rutas, tiempos, nombres de líneas ni tarifas — usa únicamente los datos que devuelven las herramientas.
+2. Llama a get_weather_cdmx primero para cada consulta de ruta, luego a get_transit_route.
+3. Si hay lluvia activa (precipitation_mm > 0 o weathercode ≥ 51), añade el tiempo de advertencia al total y avisa al usuario.
+4. Presenta siempre las opciones de ruta devueltas (hasta 3), indicando cuál es la más rápida y cuál tiene menos transbordos.
+5. Si el usuario da una hora de llegada, calcula la hora de salida necesaria restando la duración total al arribo deseado.
+6. Formato de respuesta: una línea resumen, luego tabla/lista con cada opción (líneas usadas → duración → tarifa → advertencia de clima si aplica).
+7. Sé explícito cuando un dato es estimado y no garantizado.`;
+
 
 export async function* answerWith(message, sessionId, userId) {
   const history = await loadHistory(sessionId);
@@ -186,7 +260,7 @@ export async function* answerWith(message, sessionId, userId) {
     model,
     systemPrompt: SYSTEM_PROMPT,
     messages: history,
-    tools: [getTransitRoute, saveTripTool],
+    tools: [getWeatherCdmx, getTransitRoute, saveTripTool],
     printer: false,
   });
 
