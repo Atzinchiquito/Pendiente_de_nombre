@@ -2,6 +2,7 @@ import { Agent, BedrockModel, tool } from "@strands-agents/sdk";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
+import { randomUUID } from "crypto";
 import { z } from "zod";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
@@ -50,6 +51,30 @@ async function saveHistory(sessionId, messages) {
       expiresAt: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
     },
   }));
+}
+
+// ---------- Trip history ----------
+
+export async function saveTripRecord(userId, trip) {
+  const record = await ddb.send(new GetCommand({
+    TableName: process.env.SESSIONS_TABLE,
+    Key: { sessionId: `trips#${userId}` },
+  }));
+  const trips = record.Item ? JSON.parse(record.Item.messages) : [];
+  trips.unshift({ id: randomUUID(), savedAt: new Date().toISOString(), ...trip });
+  await ddb.send(new PutCommand({
+    TableName: process.env.SESSIONS_TABLE,
+    Item: { sessionId: `trips#${userId}`, messages: JSON.stringify(trips) },
+  }));
+  return trips;
+}
+
+export async function getTrips(userId) {
+  const record = await ddb.send(new GetCommand({
+    TableName: process.env.SESSIONS_TABLE,
+    Key: { sessionId: `trips#${userId}` },
+  }));
+  return record.Item ? JSON.parse(record.Item.messages) : [];
 }
 
 // ---------- Tools ----------
@@ -138,13 +163,30 @@ const SYSTEM_PROMPT =
   "Be transparent when a number is an estimate, not a guarantee. " +
   "Keep responses short and scannable: a one-line summary, then the itinerary with concrete times.";
 
-export async function* answerWith(message, sessionId) {
+export async function* answerWith(message, sessionId, userId) {
   const history = await loadHistory(sessionId);
+
+  const saveTripTool = tool({
+    name: "save_trip",
+    description: "Save a completed trip to the user's history. Call this when the user confirms a trip is done or asks to save it.",
+    inputSchema: z.object({
+      origin: z.string().describe("Starting point of the trip"),
+      destination: z.string().describe("End point of the trip"),
+      date: z.string().describe("Date of the trip in ISO 8601 format"),
+      duration: z.string().optional().describe("Total travel duration, e.g. '45 min'"),
+      summary: z.string().describe("One-line summary of the trip"),
+    }),
+    callback: async ({ origin, destination, date, duration, summary }) => {
+      await saveTripRecord(userId, { origin, destination, date, duration, summary });
+      return "Viaje guardado en tu historial.";
+    },
+  });
+
   const agent = new Agent({
     model,
     systemPrompt: SYSTEM_PROMPT,
     messages: history,
-    tools: [getTransitRoute],
+    tools: [getTransitRoute, saveTripTool],
     printer: false,
   });
 

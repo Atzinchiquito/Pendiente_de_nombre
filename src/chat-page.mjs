@@ -50,10 +50,65 @@ export const CHAT_HTML = `<!DOCTYPE html>
   #mic:disabled { opacity: .35; cursor: default; }
   #mic.listening { color: var(--accent2); border-color: var(--accent); animation: pulse 1s infinite; }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+  /* sidebar */
+  #sidebar {
+    position: fixed; top: 0; left: 0; height: 100%; width: 280px;
+    background: #120810; border-right: 1px solid var(--border);
+    transform: translateX(-100%); transition: transform .25s ease;
+    display: flex; flex-direction: column; z-index: 100;
+  }
+  #sidebar.open { transform: translateX(0); }
+  #overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 99;
+  }
+  #overlay.show { display: block; }
+  #sidebar-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+  }
+  #sidebar-header span { font-size: 13px; font-weight: 500; color: var(--accent2); letter-spacing: .04em; }
+  #sidebar-close { background: none; border: none; color: var(--dim); cursor: pointer;
+                   width: 32px; height: 32px; font-size: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+  #sidebar-close:hover { color: var(--text); }
+  #trips-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .trip-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 14px; font-size: 13px; line-height: 1.5;
+  }
+  .trip-card .trip-route { font-weight: 500; color: var(--text); margin-bottom: 4px; }
+  .trip-card .trip-meta { color: var(--dim); font-size: 11px; }
+  .trip-card .trip-summary { color: var(--dim); margin-top: 6px; font-size: 12px; }
+  .trips-empty { color: var(--dim); font-size: 13px; text-align: center; padding: 32px 16px; }
+  #history-btn {
+    width: 36px; height: 36px; padding: 0; border: 1px solid var(--border); border-radius: 50%;
+    background: transparent; color: var(--dim); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #history-btn:hover { color: var(--text); }
 </style>
 </head>
 <body>
-<header><h1>Agente</h1></header>
+<div id="overlay"></div>
+<div id="sidebar">
+  <div id="sidebar-header">
+    <span>Historial de viajes</span>
+    <button id="sidebar-close">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+  <div id="trips-list"><p class="trips-empty">Sin viajes guardados</p></div>
+</div>
+<header style="display:flex;align-items:center;gap:12px;">
+  <button id="history-btn" title="Historial">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    </svg>
+  </button>
+  <h1>Agente</h1>
+</header>
 <div id="log"><div class="sys">Escribe o habla para comenzar</div></div>
 <form id="f">
   <input id="box" placeholder="Escribe algo…" autocomplete="off" autofocus>
@@ -73,9 +128,11 @@ export const CHAT_HTML = `<!DOCTYPE html>
 const log = document.getElementById("log"), box = document.getElementById("box"),
       send = document.getElementById("send");
 
-// A random ID for this conversation, sent with every message. The browser
-// holds only this ticket — where the conversation lives is up to your agent.
 const sessionId = crypto.randomUUID();
+
+// userId persists across sessions so trip history accumulates
+let userId = localStorage.getItem("userId");
+if (!userId) { userId = crypto.randomUUID(); localStorage.setItem("userId", userId); }
 
 function add(cls, text) {
   const d = document.createElement("div");
@@ -93,7 +150,7 @@ async function ask(message) {
     const res = await fetch("chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, sessionId }),
+      body: JSON.stringify({ message, sessionId, userId }),
     });
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -137,6 +194,52 @@ document.getElementById("f").addEventListener("submit", (e) => {
 });
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+
+// --- Sidebar ---
+const sidebar  = document.getElementById("sidebar");
+const overlay  = document.getElementById("overlay");
+const tripsList = document.getElementById("trips-list");
+
+function openSidebar() {
+  sidebar.classList.add("open");
+  overlay.classList.add("show");
+  loadTrips();
+}
+function closeSidebar() {
+  sidebar.classList.remove("open");
+  overlay.classList.remove("show");
+}
+
+document.getElementById("history-btn").addEventListener("click", openSidebar);
+document.getElementById("sidebar-close").addEventListener("click", closeSidebar);
+overlay.addEventListener("click", closeSidebar);
+
+function formatDate(iso) {
+  try {
+    return new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" });
+  } catch { return iso; }
+}
+
+async function loadTrips() {
+  tripsList.innerHTML = '<p class="trips-empty">Cargando…</p>';
+  try {
+    const res = await fetch("trips?userId=" + encodeURIComponent(userId));
+    const trips = await res.json();
+    if (!trips.length) {
+      tripsList.innerHTML = '<p class="trips-empty">Sin viajes guardados</p>';
+      return;
+    }
+    tripsList.innerHTML = trips.map(t => \`
+      <div class="trip-card">
+        <div class="trip-route">\${t.origin} → \${t.destination}</div>
+        <div class="trip-meta">\${formatDate(t.date)}\${t.duration ? " · " + t.duration : ""}</div>
+        \${t.summary ? \`<div class="trip-summary">\${t.summary}</div>\` : ""}
+      </div>
+    \`).join("");
+  } catch {
+    tripsList.innerHTML = '<p class="trips-empty">Error al cargar historial</p>';
+  }
+}
 
 const mic = document.getElementById("mic");
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;

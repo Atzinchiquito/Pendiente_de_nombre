@@ -77,6 +77,27 @@ Resources:
         TimeoutInMillis: 29000
         Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2021-11-15/functions/${AgentFunction.Arn}/response-streaming-invocations
 
+  TripsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref Api
+      ParentId: !GetAtt Api.RootResourceId
+      PathPart: trips
+
+  TripsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref TripsResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        ResponseTransferMode: STREAM
+        TimeoutInMillis: 10000
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2021-11-15/functions/${AgentFunction.Arn}/response-streaming-invocations
+
   ProxyResource:
     Type: AWS::ApiGateway::Resource
     Properties:
@@ -100,7 +121,7 @@ Resources:
 
   Deployment:
     Type: AWS::ApiGateway::Deployment
-    DependsOn: [ChatMethod, RootMethod, ProxyMethod]
+    DependsOn: [ChatMethod, RootMethod, ProxyMethod, TripsMethod]
     Properties:
       RestApiId: !Ref Api
 

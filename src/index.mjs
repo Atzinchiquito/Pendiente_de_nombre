@@ -1,5 +1,5 @@
 import { CHAT_HTML } from "./chat-page.mjs";
-import { answerWith } from "./agent.mjs";
+import { answerWith, getTrips } from "./agent.mjs";
 
 const MANIFEST = JSON.stringify({
   name: "Pendiente de Nombre",
@@ -61,6 +61,11 @@ export const handler = awslambda.streamifyResponse(
       if (path.endsWith("/manifest.json")) return serveStatic(responseStream, "application/manifest+json", MANIFEST);
       if (path.endsWith("/sw.js"))         return serveStatic(responseStream, "application/javascript", SW_JS);
       if (path.endsWith("/icon.svg"))      return serveStatic(responseStream, "image/svg+xml", ICON_SVG);
+      if (path.endsWith("/trips")) {
+        const userId = event.queryStringParameters?.userId ?? "anonymous";
+        const trips = await getTrips(userId);
+        return serveStatic(responseStream, "application/json", JSON.stringify(trips));
+      }
       return serveStatic(responseStream, "text/html; charset=utf-8", CHAT_HTML);
     }
 
@@ -72,8 +77,8 @@ export const handler = awslambda.streamifyResponse(
     const send = (obj) => responseStream.write(JSON.stringify(obj) + "\n");
 
     try {
-      const { message, sessionId } = JSON.parse(event.body ?? "{}");
-      for await (const chunk of answerWith(message ?? "Hello!", sessionId ?? "no-session")) {
+      const { message, sessionId, userId } = JSON.parse(event.body ?? "{}");
+      for await (const chunk of answerWith(message ?? "Hello!", sessionId ?? "no-session", userId ?? "anonymous")) {
         send(chunk);
       }
       send({ type: "done" });
