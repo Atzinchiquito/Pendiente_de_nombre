@@ -10,7 +10,7 @@ Resources:
   AgentFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: nube-agent
+      FunctionName: pendiente-de-nombre-agent
       Handler: index.handler
       Runtime: nodejs22.x
       Architectures: [arm64]
@@ -21,7 +21,6 @@ Resources:
         Variables:
           PRODUCTS_TABLE: product-catalog
           SESSIONS_TABLE: agent-sessions
-          GOOGLE_MAPS_API_KEY: !Sub "{{resolve:ssm:/nube/google-maps-key}}"
       # Execution role is pre-created for the workshop (Bedrock + catalog read).
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/nube-agent-execution-role"
 
@@ -29,7 +28,7 @@ Resources:
   Api:
     Type: AWS::ApiGateway::RestApi
     Properties:
-      Name: nube-agent-api
+      Name: pendiente-de-nombre-api
 
   ChatResource:
     Type: AWS::ApiGateway::Resource
@@ -73,16 +72,37 @@ Resources:
         TimeoutInMillis: 29000
         Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2021-11-15/functions/${AgentFunction.Arn}/response-streaming-invocations
 
+  ProxyResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref Api
+      ParentId: !GetAtt Api.RootResourceId
+      PathPart: "{proxy+}"
+
+  ProxyMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref ProxyResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        ResponseTransferMode: STREAM
+        TimeoutInMillis: 29000
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2021-11-15/functions/${AgentFunction.Arn}/response-streaming-invocations
+
   Deployment:
     Type: AWS::ApiGateway::Deployment
-    DependsOn: [ChatMethod, RootMethod]
+    DependsOn: [ChatMethod, RootMethod, ProxyMethod]
     Properties:
       RestApiId: !Ref Api
 
   AccessLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /aws/apigateway/nube-agent
+      LogGroupName: /aws/apigateway/pendiente-de-nombre
       RetentionInDays: 7
 
   Stage:

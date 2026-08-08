@@ -6,7 +6,13 @@ export const CHAT_HTML = `<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nube — Agent Chat</title>
+<meta name="theme-color" content="#0f1b2a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Agente">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>Agente</title>
 <style>
   :root { --bg:#0f1b2a; --panel:#16283e; --accent:#ff9900; --text:#eaf1f8; --dim:#8ba3bc; }
   * { box-sizing: border-box; margin: 0; }
@@ -106,6 +112,8 @@ document.getElementById("f").addEventListener("submit", (e) => {
   box.value = "";
   ask(text);
 });
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
 </script>
 </body>
 </html>`;
