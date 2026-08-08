@@ -36,6 +36,9 @@ export const CHAT_HTML = `<!DOCTYPE html>
   button { padding: 12px 22px; border: none; border-radius: 10px; background: var(--accent);
            color: #1a1a1a; font-size: 15px; font-weight: 600; cursor: pointer; }
   button:disabled { opacity: .4; cursor: default; }
+  #mic { padding: 12px 14px; background: var(--panel); border: 1px solid #2c4a6e; color: var(--text); font-size: 18px; }
+  #mic.listening { background: #4a1a00; border-color: var(--accent); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
 </style>
 </head>
 <body>
@@ -43,6 +46,7 @@ export const CHAT_HTML = `<!DOCTYPE html>
 <div id="log"><div class="sys">Say hello to your agent 👋</div></div>
 <form id="f">
   <input id="box" placeholder="Ask your agent something…" autocomplete="off" autofocus>
+  <button id="mic" type="button" title="Hablar">🎤</button>
   <button id="send">Send</button>
 </form>
 <script>
@@ -114,6 +118,43 @@ document.getElementById("f").addEventListener("submit", (e) => {
 });
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+
+const mic = document.getElementById("mic");
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!SpeechRecognition) {
+  mic.style.display = "none";
+} else {
+  const rec = new SpeechRecognition();
+  rec.lang = "es-MX";
+  rec.interimResults = true;
+  rec.continuous = false;
+  let finalText = "";
+
+  rec.onstart = () => { mic.classList.add("listening"); finalText = ""; };
+  rec.onend   = () => {
+    mic.classList.remove("listening");
+    mic.textContent = "🎤";
+    if (finalText.trim()) {
+      box.value = finalText.trim();
+      box.dispatchEvent(new Event("input"));
+    }
+  };
+  rec.onresult = (e) => {
+    let interim = "";
+    for (const r of e.results) {
+      if (r.isFinal) finalText += r[0].transcript;
+      else interim = r[0].transcript;
+    }
+    box.value = finalText + interim;
+  };
+  rec.onerror = (e) => { if (e.error !== "aborted") add("error", "⚠ Micrófono: " + e.error); };
+
+  mic.addEventListener("click", () => {
+    if (mic.classList.contains("listening")) { rec.stop(); return; }
+    mic.textContent = "⏹";
+    rec.start();
+  });
+}
 </script>
 </body>
 </html>`;
