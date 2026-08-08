@@ -2,6 +2,7 @@ import { Agent, BedrockModel, tool } from "@strands-agents/sdk";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { z } from "zod";
+import { loadProfile, saveProfile } from "./userProfile.mjs";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
