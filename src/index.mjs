@@ -7,22 +7,29 @@ const MANIFEST = JSON.stringify({
   description: "AI Agent Chat",
   start_url: "./",
   display: "standalone",
-  background_color: "#0f1b2a",
-  theme_color: "#0f1b2a",
+  background_color: "#1a0a10",
+  theme_color: "#1a0a10",
   icons: [
     { src: "icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" }
   ]
 });
 
 const ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
-  <rect width="192" height="192" rx="40" fill="#0f1b2a"/>
-  <rect x="44" y="52" width="104" height="96" rx="20" fill="#ff9900"/>
-  <rect x="64" y="80" width="20" height="20" rx="4" fill="#0f1b2a"/>
-  <rect x="108" y="80" width="20" height="20" rx="4" fill="#0f1b2a"/>
-  <rect x="64" y="116" width="64" height="14" rx="7" fill="#0f1b2a"/>
-  <rect x="88" y="30" width="16" height="26" rx="4" fill="#ff9900"/>
-  <circle cx="96" cy="28" r="10" fill="#ff9900"/>
-  <circle cx="96" cy="28" r="5" fill="#0f1b2a"/>
+  <rect width="192" height="192" rx="40" fill="#1a0a10"/>
+  <!-- cabeza -->
+  <circle cx="126" cy="44" r="16" fill="#e8006e"/>
+  <!-- torso inclinado hacia adelante -->
+  <line x1="118" y1="58" x2="88" y2="100" stroke="#e8006e" stroke-width="12" stroke-linecap="round"/>
+  <!-- brazo trasero (arriba) -->
+  <line x1="110" y1="72" x2="136" y2="54" stroke="#ff4fa0" stroke-width="10" stroke-linecap="round"/>
+  <!-- brazo delantero (abajo) -->
+  <line x1="100" y1="88" x2="70" y2="108" stroke="#ff4fa0" stroke-width="10" stroke-linecap="round"/>
+  <!-- pierna delantera (extendida al frente) -->
+  <line x1="88" y1="100" x2="58" y2="130" stroke="#e8006e" stroke-width="12" stroke-linecap="round"/>
+  <line x1="58" y1="130" x2="44" y2="152" stroke="#e8006e" stroke-width="11" stroke-linecap="round"/>
+  <!-- pierna trasera (extendida atrás) -->
+  <line x1="88" y1="100" x2="118" y2="130" stroke="#e8006e" stroke-width="12" stroke-linecap="round"/>
+  <line x1="118" y1="130" x2="148" y2="148" stroke="#e8006e" stroke-width="11" stroke-linecap="round"/>
 </svg>`;
 
 const SW_JS = `

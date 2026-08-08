@@ -6,7 +6,7 @@ export const CHAT_HTML = `<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0f1b2a">
+<meta name="theme-color" content="#1a0a10">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Agente">
@@ -14,40 +14,59 @@ export const CHAT_HTML = `<!DOCTYPE html>
 <link rel="apple-touch-icon" href="icon.svg">
 <title>Agente</title>
 <style>
-  :root { --bg:#0f1b2a; --panel:#16283e; --accent:#ff9900; --text:#eaf1f8; --dim:#8ba3bc; }
+  :root {
+    --bg: #1a0a10;
+    --panel: #2a1020;
+    --accent: #e8006e;
+    --accent2: #ff4fa0;
+    --text: #fce4ec;
+    --dim: #b06080;
+    --border: #5a1a38;
+  }
   * { box-sizing: border-box; margin: 0; }
   body { background: var(--bg); color: var(--text); font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
          height: 100vh; display: flex; flex-direction: column; }
-  header { padding: 14px 20px; background: var(--panel); }
-  header h1 { font-size: 16px; font-weight: 600; }
-  #log { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
-  .msg { max-width: 75%; padding: 10px 14px; border-radius: 12px; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word; }
-  .user { align-self: flex-end; background: var(--accent); color: #1a1a1a; border-bottom-right-radius: 3px; }
-  .agent { align-self: flex-start; background: var(--panel); border-bottom-left-radius: 3px; }
-  .tool { align-self: flex-start; font-size: 12px; color: var(--dim); background: #101d30;
-          border: 1px solid #24405e; border-radius: 8px; padding: 5px 10px; }
-  .error { align-self: flex-start; background: #4a1515; border: 1px solid #a33; color: #ffd7d7;
-           font-family: ui-monospace, monospace; font-size: 13px; }
+  header { padding: 14px 20px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  header h1 { font-size: 15px; font-weight: 500; letter-spacing: .03em; color: var(--accent2); }
+  #log { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { max-width: 78%; padding: 10px 14px; border-radius: 16px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; font-size: 15px; }
+  .user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+  .agent { align-self: flex-start; background: var(--panel); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .tool { align-self: flex-start; font-size: 11px; color: var(--dim); padding: 4px 10px; letter-spacing: .02em; }
+  .error { align-self: flex-start; color: #ff6b8a; font-size: 13px; padding: 4px 0; }
   .sys { align-self: center; font-size: 12px; color: var(--dim); }
-  form { display: flex; gap: 10px; padding: 16px 20px; background: var(--panel); }
-  input { flex: 1; padding: 12px 14px; border-radius: 10px; border: 1px solid #2c4a6e;
+  form { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: var(--panel); border-top: 1px solid var(--border); }
+  input { flex: 1; padding: 11px 14px; border-radius: 24px; border: 1px solid var(--border);
           background: var(--bg); color: var(--text); font-size: 15px; outline: none; }
   input:focus { border-color: var(--accent); }
-  button { padding: 12px 22px; border: none; border-radius: 10px; background: var(--accent);
-           color: #1a1a1a; font-size: 15px; font-weight: 600; cursor: pointer; }
-  button:disabled { opacity: .4; cursor: default; }
-  #mic { padding: 12px 14px; background: var(--panel); border: 1px solid #2c4a6e; color: var(--text); font-size: 18px; }
-  #mic.listening { background: #4a1a00; border-color: var(--accent); animation: pulse 1s infinite; }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+  input::placeholder { color: var(--dim); }
+  #send { width: 40px; height: 40px; padding: 0; border: none; border-radius: 50%;
+          background: var(--accent); color: #fff; font-size: 18px; cursor: pointer; flex-shrink: 0;
+          display: flex; align-items: center; justify-content: center; }
+  #send:disabled { opacity: .35; cursor: default; }
+  #mic { width: 40px; height: 40px; padding: 0; border: 1px solid var(--border); border-radius: 50%;
+         background: transparent; color: var(--dim); font-size: 16px; cursor: pointer; flex-shrink: 0;
+         display: flex; align-items: center; justify-content: center; }
+  #mic:disabled { opacity: .35; cursor: default; }
+  #mic.listening { color: var(--accent2); border-color: var(--accent); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
 </style>
 </head>
 <body>
-<header><h1>🤖 Your Agent</h1></header>
-<div id="log"><div class="sys">Say hello to your agent 👋</div></div>
+<header><h1>Agente</h1></header>
+<div id="log"><div class="sys">Escribe o habla para comenzar</div></div>
 <form id="f">
-  <input id="box" placeholder="Ask your agent something…" autocomplete="off" autofocus>
-  <button id="mic" type="button" title="Hablar">🎤</button>
-  <button id="send">Send</button>
+  <input id="box" placeholder="Escribe algo…" autocomplete="off" autofocus>
+  <button id="mic" type="button" title="Hablar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="9" y1="22" x2="15" y2="22"/>
+    </svg>
+  </button>
+  <button id="send">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+    </svg>
+  </button>
 </form>
 <script>
 "use strict";
@@ -133,7 +152,6 @@ if (!SpeechRecognition) {
   rec.onstart = () => { mic.classList.add("listening"); finalText = ""; };
   rec.onend   = () => {
     mic.classList.remove("listening");
-    mic.textContent = "🎤";
     if (finalText.trim()) {
       box.value = finalText.trim();
       box.dispatchEvent(new Event("input"));
@@ -151,7 +169,6 @@ if (!SpeechRecognition) {
 
   mic.addEventListener("click", () => {
     if (mic.classList.contains("listening")) { rec.stop(); return; }
-    mic.textContent = "⏹";
     rec.start();
   });
 }
