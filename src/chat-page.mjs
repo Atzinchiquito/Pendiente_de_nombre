@@ -37,10 +37,11 @@ export const CHAT_HTML = `<!DOCTYPE html>
               text-transform: uppercase; color: #fff; flex: 1; }
 
   /* chat log */
-  #log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px;
+  #log { flex: 1; overflow-y: auto; padding: 16px 16px 10px; display: flex; flex-direction: column; gap: 16px;
          background: var(--bg); }
   .msg { max-width: 80%; padding: 10px 14px; border: 2.5px solid var(--border);
-         line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; font-size: 14px; }
+         line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; font-size: 14px;
+         margin-bottom: 4px; }
   .user { align-self: flex-end; background: var(--accent); color: #fff;
           box-shadow: var(--shadow); font-weight: 700; }
   .agent { align-self: flex-start; background: var(--panel);
@@ -54,7 +55,7 @@ export const CHAT_HTML = `<!DOCTYPE html>
          text-transform: uppercase; letter-spacing: .08em; }
 
   /* input bar */
-  form { display: flex; align-items: center; gap: 8px; padding: 12px 14px;
+  form { display: flex; align-items: center; gap: 8px; padding: 14px 14px 12px;
          background: var(--panel); border-top: 3px solid var(--border); }
   input { flex: 1; padding: 10px 14px; border: 2.5px solid var(--border);
           background: var(--bg); color: var(--text); font-size: 14px;
@@ -124,6 +125,7 @@ export const CHAT_HTML = `<!DOCTYPE html>
   .login-box {
     width: 100%; max-width: 340px;
     display: flex; flex-direction: column; gap: 18px;
+    padding: 4px 6px 6px;
   }
   .login-box .login-icon {
     width: 52px; height: 52px; background: var(--accent);
