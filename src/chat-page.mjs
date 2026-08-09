@@ -119,13 +119,13 @@ export const CHAT_HTML = `<!DOCTYPE html>
   #login-screen {
     position: fixed; inset: 0; background: var(--bg);
     display: flex; align-items: center; justify-content: center;
-    z-index: 200; padding: 24px;
+    z-index: 200; padding: 32px 28px;
   }
   #login-screen.hidden { display: none; }
   .login-box {
     width: 100%; max-width: 340px;
-    display: flex; flex-direction: column; gap: 18px;
-    padding: 4px 6px 6px;
+    display: flex; flex-direction: column; gap: 22px;
+    padding: 4px 8px 10px;
   }
   .login-box .login-icon {
     width: 52px; height: 52px; background: var(--accent);
@@ -143,8 +143,9 @@ export const CHAT_HTML = `<!DOCTYPE html>
     padding: 12px 14px; border: 2.5px solid var(--border);
     background: var(--panel); color: var(--text); font-size: 15px;
     font-family: inherit; outline: none; width: 100%; border-radius: 0;
+    box-shadow: 4px 4px 0 var(--border); display: block;
   }
-  .login-field input:focus { border-color: var(--accent); box-shadow: 3px 3px 0 var(--accent); }
+  .login-field input:focus { border-color: var(--accent); box-shadow: 4px 4px 0 var(--accent); }
   .login-remember {
     display: flex; align-items: center; gap: 10px;
     font-size: 13px; color: var(--text); cursor: pointer; user-select: none;
