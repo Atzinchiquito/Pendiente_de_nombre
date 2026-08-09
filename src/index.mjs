@@ -7,8 +7,8 @@ const MANIFEST = JSON.stringify({
   description: "AI Agent Chat",
   start_url: "./",
   display: "standalone",
-  background_color: "#1a0a10",
-  theme_color: "#1a0a10",
+  background_color: "#f2e8ed",
+  theme_color: "#e8006e",
   icons: [
     { src: "icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" }
   ]

@@ -6,7 +6,7 @@ export const CHAT_HTML = `<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#1a0a10">
+<meta name="theme-color" content="#f2e8ed">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Agente">
@@ -14,78 +14,105 @@ export const CHAT_HTML = `<!DOCTYPE html>
 <link rel="apple-touch-icon" href="icon.svg">
 <title>Agente</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700;900&display=swap');
   :root {
-    --bg: #1a0a10;
-    --panel: #2a1020;
+    --bg: #f2e8ed;
+    --panel: #fdf6f9;
     --accent: #e8006e;
-    --accent2: #ff4fa0;
-    --text: #fce4ec;
-    --dim: #b06080;
-    --border: #5a1a38;
+    --accent2: #ff2d87;
+    --text: #111111;
+    --dim: #666666;
+    --border: #111111;
+    --shadow: 4px 4px 0 #111111;
   }
   * { box-sizing: border-box; margin: 0; }
-  body { background: var(--bg); color: var(--text); font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  body { background: var(--bg); color: var(--text);
+         font-family: 'Space Grotesk', -apple-system, sans-serif;
          height: 100vh; display: flex; flex-direction: column; }
-  header { padding: 14px 20px; background: var(--panel); border-bottom: 1px solid var(--border); }
-  header h1 { font-size: 15px; font-weight: 500; letter-spacing: .03em; color: var(--accent2); }
-  #log { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-  .msg { max-width: 78%; padding: 10px 14px; border-radius: 16px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; font-size: 15px; }
-  .user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
-  .agent { align-self: flex-start; background: var(--panel); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
-  .tool { align-self: flex-start; font-size: 11px; color: var(--dim); padding: 4px 10px; letter-spacing: .02em; }
-  .error { align-self: flex-start; color: #ff6b8a; font-size: 13px; padding: 4px 0; }
-  .sys { align-self: center; font-size: 12px; color: var(--dim); }
-  form { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: var(--panel); border-top: 1px solid var(--border); }
-  input { flex: 1; padding: 11px 14px; border-radius: 24px; border: 1px solid var(--border);
-          background: var(--bg); color: var(--text); font-size: 15px; outline: none; }
-  input:focus { border-color: var(--accent); }
-  input::placeholder { color: var(--dim); }
-  #send { width: 40px; height: 40px; padding: 0; border: none; border-radius: 50%;
-          background: var(--accent); color: #fff; font-size: 18px; cursor: pointer; flex-shrink: 0;
-          display: flex; align-items: center; justify-content: center; }
-  #send:disabled { opacity: .35; cursor: default; }
-  #mic { width: 40px; height: 40px; padding: 0; border: 1px solid var(--border); border-radius: 50%;
-         background: transparent; color: var(--dim); font-size: 16px; cursor: pointer; flex-shrink: 0;
-         display: flex; align-items: center; justify-content: center; }
-  #mic:disabled { opacity: .35; cursor: default; }
-  #mic.listening { color: var(--accent2); border-color: var(--accent); animation: pulse 1s infinite; }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+  /* header */
+  header { padding: 12px 16px; background: var(--accent); border-bottom: 3px solid var(--border);
+           display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 16px; font-weight: 900; letter-spacing: .06em;
+              text-transform: uppercase; color: #fff; flex: 1; }
+
+  /* chat log */
+  #log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px;
+         background: var(--bg); }
+  .msg { max-width: 80%; padding: 10px 14px; border: 2.5px solid var(--border);
+         line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; font-size: 14px; }
+  .user { align-self: flex-end; background: var(--accent); color: #fff;
+          box-shadow: var(--shadow); font-weight: 700; }
+  .agent { align-self: flex-start; background: var(--panel);
+           box-shadow: var(--shadow); }
+  .tool { align-self: flex-start; font-size: 11px; color: var(--dim);
+          padding: 3px 8px; border: 1.5px dashed #aaa; letter-spacing: .04em;
+          text-transform: uppercase; }
+  .error { align-self: flex-start; background: #fff0f4; border: 2px solid var(--accent);
+           color: var(--accent); font-size: 13px; padding: 6px 10px; }
+  .sys { align-self: center; font-size: 11px; color: var(--dim);
+         text-transform: uppercase; letter-spacing: .08em; }
+
+  /* input bar */
+  form { display: flex; align-items: center; gap: 8px; padding: 12px 14px;
+         background: var(--panel); border-top: 3px solid var(--border); }
+  input { flex: 1; padding: 10px 14px; border: 2.5px solid var(--border);
+          background: var(--bg); color: var(--text); font-size: 14px;
+          font-family: inherit; outline: none; border-radius: 0; }
+  input:focus { border-color: var(--accent); box-shadow: 3px 3px 0 var(--accent); }
+  input::placeholder { color: #aaa; }
+  #send { width: 42px; height: 42px; padding: 0; border: 2.5px solid var(--border);
+          border-radius: 0; background: var(--accent); color: #fff; cursor: pointer;
+          flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+          box-shadow: 3px 3px 0 var(--border); }
+  #send:active { box-shadow: none; transform: translate(3px,3px); }
+  #send:disabled { opacity: .4; cursor: default; box-shadow: none; }
+  #mic { width: 42px; height: 42px; padding: 0; border: 2.5px solid var(--border);
+         border-radius: 0; background: var(--panel); color: var(--text); cursor: pointer;
+         flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+         box-shadow: 3px 3px 0 var(--border); }
+  #mic:active { box-shadow: none; transform: translate(3px,3px); }
+  #mic:disabled { opacity: .4; cursor: default; box-shadow: none; }
+  #mic.listening { background: var(--accent); color: #fff; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
 
   /* sidebar */
   #sidebar {
-    position: fixed; top: 0; left: 0; height: 100%; width: 280px;
-    background: #120810; border-right: 1px solid var(--border);
-    transform: translateX(-100%); transition: transform .25s ease;
+    position: fixed; top: 0; left: 0; height: 100%; width: 290px;
+    background: var(--panel); border-right: 3px solid var(--border);
+    transform: translateX(-100%); transition: transform .2s ease;
     display: flex; flex-direction: column; z-index: 100;
   }
   #sidebar.open { transform: translateX(0); }
-  #overlay {
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 99;
-  }
+  #overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 99; }
   #overlay.show { display: block; }
   #sidebar-header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    padding: 14px 16px; background: var(--accent); border-bottom: 3px solid var(--border);
   }
-  #sidebar-header span { font-size: 13px; font-weight: 500; color: var(--accent2); letter-spacing: .04em; }
-  #sidebar-close { background: none; border: none; color: var(--dim); cursor: pointer;
-                   width: 32px; height: 32px; font-size: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
-  #sidebar-close:hover { color: var(--text); }
-  #trips-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  #sidebar-header span { font-size: 12px; font-weight: 900; color: #fff;
+                         letter-spacing: .08em; text-transform: uppercase; }
+  #sidebar-close { background: none; border: 2px solid #fff; color: #fff; cursor: pointer;
+                   width: 28px; height: 28px; display: flex; align-items: center;
+                   justify-content: center; border-radius: 0; flex-shrink: 0; }
+  #trips-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
   .trip-card {
-    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    background: var(--bg); border: 2.5px solid var(--border);
+    box-shadow: 3px 3px 0 var(--border);
     padding: 12px 14px; font-size: 13px; line-height: 1.5;
   }
-  .trip-card .trip-route { font-weight: 500; color: var(--text); margin-bottom: 4px; }
+  .trip-card .trip-route { font-weight: 700; color: var(--text); margin-bottom: 4px;
+                           text-transform: uppercase; font-size: 12px; letter-spacing: .04em; }
   .trip-card .trip-meta { color: var(--dim); font-size: 11px; }
   .trip-card .trip-summary { color: var(--dim); margin-top: 6px; font-size: 12px; }
-  .trips-empty { color: var(--dim); font-size: 13px; text-align: center; padding: 32px 16px; }
+  .trips-empty { color: var(--dim); font-size: 12px; text-align: center; padding: 32px 16px;
+                 text-transform: uppercase; letter-spacing: .06em; }
   #history-btn {
-    width: 36px; height: 36px; padding: 0; border: 1px solid var(--border); border-radius: 50%;
-    background: transparent; color: var(--dim); cursor: pointer;
+    width: 36px; height: 36px; padding: 0; border: 2.5px solid #fff;
+    border-radius: 0; background: transparent; color: #fff; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
   }
-  #history-btn:hover { color: var(--text); }
+  #history-btn:active { background: rgba(255,255,255,.2); }
 
   /* login */
   #login-screen {
@@ -96,46 +123,50 @@ export const CHAT_HTML = `<!DOCTYPE html>
   #login-screen.hidden { display: none; }
   .login-box {
     width: 100%; max-width: 340px;
-    display: flex; flex-direction: column; gap: 20px;
+    display: flex; flex-direction: column; gap: 18px;
   }
   .login-box .login-icon {
-    width: 56px; height: 56px; background: var(--panel);
-    border: 1px solid var(--border); border-radius: 16px;
+    width: 52px; height: 52px; background: var(--accent);
+    border: 3px solid var(--border); box-shadow: var(--shadow);
     display: flex; align-items: center; justify-content: center;
-    color: var(--accent);
+    color: #fff;
   }
-  .login-box h2 { font-size: 20px; font-weight: 600; color: var(--text); }
-  .login-box p { font-size: 13px; color: var(--dim); margin-top: -12px; }
+  .login-box h2 { font-size: 28px; font-weight: 900; text-transform: uppercase;
+                  letter-spacing: .04em; color: var(--text); line-height: 1; }
+  .login-box p { font-size: 13px; color: var(--dim); margin-top: -10px; }
   .login-field { display: flex; flex-direction: column; gap: 6px; }
-  .login-field label { font-size: 12px; color: var(--dim); letter-spacing: .04em; }
+  .login-field label { font-size: 11px; font-weight: 700; color: var(--text);
+                       letter-spacing: .08em; text-transform: uppercase; }
   .login-field input {
-    padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border);
-    background: var(--panel); color: var(--text); font-size: 15px; outline: none; width: 100%;
+    padding: 12px 14px; border: 2.5px solid var(--border);
+    background: var(--panel); color: var(--text); font-size: 15px;
+    font-family: inherit; outline: none; width: 100%; border-radius: 0;
   }
-  .login-field input:focus { border-color: var(--accent); }
+  .login-field input:focus { border-color: var(--accent); box-shadow: 3px 3px 0 var(--accent); }
   .login-remember {
     display: flex; align-items: center; gap: 10px;
-    font-size: 13px; color: var(--dim); cursor: pointer; user-select: none;
+    font-size: 13px; color: var(--text); cursor: pointer; user-select: none;
+    font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
   }
   .login-remember input[type=checkbox] { display: none; }
   .login-remember .check-box {
-    width: 18px; height: 18px; border: 1px solid var(--border); border-radius: 5px;
+    width: 20px; height: 20px; border: 2.5px solid var(--border); border-radius: 0;
     background: var(--panel); flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
-    transition: background .15s, border-color .15s;
+    transition: background .1s;
   }
-  .login-remember input:checked + .check-box {
-    background: var(--accent); border-color: var(--accent);
-  }
+  .login-remember input:checked + .check-box { background: var(--accent); border-color: var(--accent); }
   .login-remember .check-box svg { display: none; }
   .login-remember input:checked + .check-box svg { display: block; }
   #login-btn {
-    width: 100%; padding: 13px; border: none; border-radius: 12px;
-    background: var(--accent); color: #fff; font-size: 15px; font-weight: 600;
-    cursor: pointer; letter-spacing: .02em;
+    width: 100%; padding: 14px; border: 2.5px solid var(--border); border-radius: 0;
+    background: var(--accent); color: #fff; font-size: 15px; font-weight: 900;
+    font-family: inherit; cursor: pointer; letter-spacing: .08em; text-transform: uppercase;
+    box-shadow: var(--shadow);
   }
-  #login-btn:hover { background: var(--accent2); }
-  #login-error { font-size: 12px; color: #ff6b8a; min-height: 16px; }
+  #login-btn:active { box-shadow: none; transform: translate(4px,4px); }
+  #login-error { font-size: 12px; color: var(--accent); min-height: 16px;
+                 font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
 </style>
 </head>
 <body>
@@ -187,7 +218,7 @@ export const CHAT_HTML = `<!DOCTYPE html>
     </svg>
   </button>
   <h1 style="flex:1">Agente</h1>
-  <span id="user-badge" style="font-size:12px;color:var(--dim);cursor:pointer;" title="Cerrar sesión"></span>
+  <span id="user-badge" style="font-size:11px;font-weight:700;color:#fff;cursor:pointer;text-transform:uppercase;letter-spacing:.04em;opacity:.85;" title="Cerrar sesión"></span>
 </header>
 <div id="log"><div class="sys">Escribe o habla para comenzar</div></div>
 <form id="f">
