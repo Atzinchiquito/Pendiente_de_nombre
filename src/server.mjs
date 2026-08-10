@@ -6,7 +6,7 @@ import express from "express";
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import { HOME_HTML } from "./home-page.mjs";
 import { answerWith, getTrips, getPlan } from "./agent.mjs";
-import { getUserByName, createUser, getAllProfiles, countProfiles, putPlan } from "./db.mjs";
+import { getUserByName, createUser, getAllProfiles, countProfiles, deleteProfile, putPlan } from "./db.mjs";
 import { loadProfile, saveProfile } from "./userProfile.mjs";
 
 function hashPassword(password) {
@@ -127,6 +127,11 @@ app.get("/profile", (req, res) => {
   const userId = req.query.userId ?? "anonymous";
   const profile = loadProfile(userId);
   res.json({ nombre: profile?.nombre ?? null });
+});
+
+app.delete("/profile/:userId", (req, res) => {
+  deleteProfile(req.params.userId);
+  res.json({ ok: true });
 });
 
 app.post("/profile", (req, res) => {

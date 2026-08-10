@@ -189,6 +189,15 @@ export const HOME_HTML = `<!DOCTYPE html>
     font-size: 13px; color: var(--dim); padding: 8px 0;
     font-style: italic;
   }
+  .btn-danger {
+    flex: 1; padding: 11px 10px; border: 2.5px solid #c0001a; border-radius: 0;
+    background: #fff0f2; color: #c0001a; font-size: 12px; font-weight: 900;
+    font-family: inherit; cursor: pointer; letter-spacing: .07em;
+    text-transform: uppercase; box-shadow: 3px 3px 0 #c0001a;
+    transition: box-shadow .1s, transform .1s;
+  }
+  .btn-danger:active { box-shadow: none; transform: translate(3px,3px); }
+  .btn-danger:disabled { opacity: .4; cursor: default; box-shadow: none; }
 
   /* ── USUARIOS FAB + DROPDOWN ───────────────────────── */
   #fab-usuarios {
@@ -523,7 +532,20 @@ export const HOME_HTML = `<!DOCTYPE html>
       <div id="cambiar-lista"></div>
       <div class="modal-actions">
         <button id="cambiar-cancelar" class="btn-secondary">Cancelar</button>
+        <button id="cambiar-eliminar" class="btn-danger">Eliminar</button>
         <button id="cambiar-ok" class="btn-primary">Cambiar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CONFIRMACIÓN ELIMINAR -->
+  <div id="modal-confirmar" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:300px;gap:14px;">
+      <h2 class="modal-title" style="font-size:16px;">¿Eliminar perfil?</h2>
+      <p id="confirmar-texto" style="font-size:13px;color:var(--dim);line-height:1.5;"></p>
+      <div class="modal-actions">
+        <button id="confirmar-cancelar" class="btn-secondary">Cancelar</button>
+        <button id="confirmar-ok" class="btn-danger">Eliminar</button>
       </div>
     </div>
   </div>
@@ -793,6 +815,7 @@ $("drop-cambiar-usuario").addEventListener("click", async () => {
 });
 
 $("cambiar-cancelar").addEventListener("click", () => $("modal-cambiar").classList.add("hidden"));
+
 $("cambiar-ok").addEventListener("click", () => {
   if (selectedCambiarId) {
     userId = selectedCambiarId;
@@ -801,6 +824,56 @@ $("cambiar-ok").addEventListener("click", () => {
   }
   $("modal-cambiar").classList.add("hidden");
 });
+
+$("cambiar-eliminar").addEventListener("click", () => {
+  if (!selectedCambiarId) return;
+  const btn = $("cambiar-lista").querySelector(".usuario-item.selected");
+  const nombre = btn ? btn.textContent : "este perfil";
+  $("confirmar-texto").textContent = 'Se eliminará "' + nombre + '" de forma permanente.';
+  $("modal-confirmar").classList.remove("hidden");
+});
+
+$("confirmar-cancelar").addEventListener("click", () => $("modal-confirmar").classList.add("hidden"));
+
+$("confirmar-ok").addEventListener("click", async () => {
+  const idToDelete = selectedCambiarId;
+  $("modal-confirmar").classList.add("hidden");
+  try {
+    await fetch("profile/" + encodeURIComponent(idToDelete), { method: "DELETE" });
+  } catch { /* ignorar */ }
+  if (userId === idToDelete) {
+    userId = loginUserId;
+    chatGreeted = false;
+  }
+  selectedCambiarId = null;
+  // Recargar la lista en el modal sin cerrarlo
+  const lista = $("cambiar-lista");
+  lista.innerHTML = "";
+  let perfiles = [];
+  try {
+    const res = await fetch("profiles?loginUserId=" + encodeURIComponent(loginUserId ?? ""));
+    perfiles = await res.json();
+  } catch { /* ignorar */ }
+  if (!perfiles.length) {
+    const p = document.createElement("p");
+    p.className = "cambiar-empty";
+    p.textContent = "Aún no hay registros.";
+    lista.appendChild(p);
+  } else {
+    perfiles.forEach(({ user_id, nombre }) => {
+      const btn = document.createElement("button");
+      btn.className = "usuario-item";
+      btn.textContent = nombre || user_id;
+      btn.addEventListener("click", () => {
+        lista.querySelectorAll(".usuario-item").forEach(b => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        selectedCambiarId = user_id;
+      });
+      lista.appendChild(btn);
+    });
+  }
+});
+
 $("modal-cambiar").addEventListener("click", e => { if (e.target === $("modal-cambiar")) $("modal-cambiar").classList.add("hidden"); });
 
 function clearPerfilForm() {

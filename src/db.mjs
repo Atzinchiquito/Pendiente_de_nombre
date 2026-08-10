@@ -46,6 +46,7 @@ const stmts = {
   getProfile:         db.prepare("SELECT * FROM profiles WHERE user_id = ?"),
   getAllProfiles:      db.prepare("SELECT user_id, nombre FROM profiles WHERE login_user_id = ? ORDER BY updated_at DESC"),
   countProfiles:      db.prepare("SELECT COUNT(*) as n FROM profiles WHERE login_user_id = ?"),
+  deleteProfile:      db.prepare("DELETE FROM profiles WHERE user_id = ?"),
   putProfile: db.prepare(
     "INSERT OR REPLACE INTO profiles (user_id, login_user_id, nombre, edad, sexo, ubicacion, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
   ),
@@ -73,6 +74,10 @@ export function getAllProfiles(loginUserId) {
 
 export function countProfiles(loginUserId) {
   return stmts.countProfiles.get(loginUserId).n;
+}
+
+export function deleteProfile(userId) {
+  stmts.deleteProfile.run(userId);
 }
 
 export function getProfile(userId) {
