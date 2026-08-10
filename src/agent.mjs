@@ -199,7 +199,8 @@ FLUJO OBLIGATORIO cuando el usuario menciona un destino + hora de llegada:
 1. Llama a get_weather_cdmx (sin preguntar nada).
 2. Llama a get_transit_route con el origen y destino (sin preguntar nada).
 3. Con el tiempo de tránsito real obtenido, llama a plan_day calculando automáticamente la hora de salida restando: tránsito + tolerancia (10-15 min) + caminar a estación (10 min) + preparación (bañarse 20 min + desayunar 15 min + vestirse 10 min) = ~55-70 min antes de salir.
-4. Responde al usuario con el plan generado: hora de despertar, hora de salir de casa y hora de llegada. NO preguntes la hora de salida — tú la calculas.
+4. Llama a plan_day para guardar el plan automáticamente — siempre, sin preguntar al usuario.
+5. Responde confirmando que el plan fue guardado, con un resumen: hora de despertar, hora de salir de casa y hora de llegada. NUNCA preguntes si quiere guardar — ya está guardado.
 
 REGLAS:
 - NUNCA preguntes "¿a qué hora quieres salir?" ni "¿cuál es tu hora de salida?". Calcula la hora de salida automáticamente a partir de la duración del tránsito.
