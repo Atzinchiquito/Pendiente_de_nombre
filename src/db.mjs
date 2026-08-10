@@ -30,6 +30,11 @@ db.exec(`
     pass_hash  TEXT NOT NULL,
     created_at INTEGER NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS plans (
+    user_id    TEXT PRIMARY KEY,
+    plan       TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
 `);
 
 const stmts = {
@@ -45,6 +50,10 @@ const stmts = {
   getUserByName: db.prepare("SELECT * FROM users WHERE username = ?"),
   createUser: db.prepare(
     "INSERT INTO users (user_id, username, pass_hash, created_at) VALUES (?, ?, ?, ?)"
+  ),
+  getPlan: db.prepare("SELECT plan FROM plans WHERE user_id = ?"),
+  putPlan: db.prepare(
+    "INSERT OR REPLACE INTO plans (user_id, plan, created_at) VALUES (?, ?, ?)"
   ),
 };
 
@@ -74,4 +83,17 @@ export function getUserByName(username) {
 
 export function createUser(userId, username, passHash) {
   stmts.createUser.run(userId, username, passHash, Date.now());
+}
+
+export function getPlan(userId) {
+  const row = stmts.getPlan.get(userId);
+  return row ? JSON.parse(row.plan) : null;
+}
+
+export function putPlan(userId, plan) {
+  if (plan === null) {
+    db.prepare("DELETE FROM plans WHERE user_id = ?").run(userId);
+  } else {
+    stmts.putPlan.run(userId, JSON.stringify(plan), Date.now());
+  }
 }

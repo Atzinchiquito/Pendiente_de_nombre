@@ -2,8 +2,8 @@ import "dotenv/config";
 import express from "express";
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import { HOME_HTML } from "./home-page.mjs";
-import { answerWith, getTrips } from "./agent.mjs";
-import { getUserByName, createUser, getAllProfiles } from "./db.mjs";
+import { answerWith, getTrips, getPlan } from "./agent.mjs";
+import { getUserByName, createUser, getAllProfiles, putPlan } from "./db.mjs";
 import { loadProfile } from "./userProfile.mjs";
 
 function hashPassword(password) {
@@ -65,7 +65,8 @@ app.use(express.json());
 
 app.get("/", (req, res) => {
   res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.send(HOME_HTML);
+  const key = process.env.GOOGLE_MAPS_API_KEY ?? "";
+  res.send(HOME_HTML.replace("__GMAPS_KEY__", key));
 });
 
 app.get("/manifest.json", (req, res) => {
@@ -122,6 +123,18 @@ app.get("/profile", (req, res) => {
   const userId = req.query.userId ?? "anonymous";
   const profile = loadProfile(userId);
   res.json({ nombre: profile?.nombre ?? null });
+});
+
+app.get("/plan", (req, res) => {
+  const userId = req.query.userId ?? "anonymous";
+  const plan = getPlan(userId);
+  res.json(plan ?? null);
+});
+
+app.delete("/plan", (req, res) => {
+  const userId = req.query.userId ?? "anonymous";
+  putPlan(userId, null);
+  res.json({ ok: true });
 });
 
 app.get("/trips", async (req, res) => {

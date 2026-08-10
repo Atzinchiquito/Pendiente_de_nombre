@@ -236,48 +236,64 @@ export const HOME_HTML = `<!DOCTYPE html>
   }
 
   /* próximo viaje */
-  .next-trip-card {
+  .plan-card {
     border: 3px solid var(--border); background: var(--panel);
-    box-shadow: var(--shadow); padding: 18px 16px;
-    display: flex; flex-direction: column; gap: 14px;
+    box-shadow: var(--shadow); display: flex; flex-direction: column;
   }
-  .trip-header {
-    display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  .plan-header {
+    padding: 14px 16px; display: flex; align-items: flex-start;
+    justify-content: space-between; gap: 10px;
+    border-bottom: 2px solid var(--border);
   }
+  .plan-event { font-size: 15px; font-weight: 900; text-transform: uppercase; letter-spacing: .03em; }
+  .plan-dest  { font-size: 11px; color: var(--dim); margin-top: 3px; font-weight: 700;
+                text-transform: uppercase; letter-spacing: .05em; }
+  .plan-arrival { text-align: right; flex-shrink: 0; }
+  .plan-arrival .big { font-size: 26px; font-weight: 900; line-height: 1; color: var(--accent); }
+  .plan-arrival .lbl { font-size: 9px; font-weight: 700; color: var(--dim);
+                       letter-spacing: .08em; text-transform: uppercase; margin-top: 2px; }
   .trip-badge {
     font-size: 9px; font-weight: 900; letter-spacing: .1em;
     text-transform: uppercase; background: var(--accent); color: #fff;
     padding: 3px 8px; border: 1.5px solid var(--border); white-space: nowrap;
     flex-shrink: 0;
   }
-  .trip-time {
-    font-size: 28px; font-weight: 900; line-height: 1; letter-spacing: -.01em;
+
+  /* pipeline / timeline */
+  .pipeline {
+    padding: 16px 16px 8px; display: flex; flex-direction: column; gap: 0;
   }
-  .trip-time span { font-size: 13px; font-weight: 400; color: var(--dim); margin-left: 4px; }
-  .trip-route-row {
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  .pipe-step {
+    display: flex; gap: 12px; align-items: flex-start; position: relative;
   }
-  .trip-origin, .trip-dest {
-    font-size: 14px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .03em;
+  .pipe-step:not(:last-child) .pipe-line {
+    position: absolute; left: 15px; top: 30px; bottom: -4px;
+    width: 2px; background: var(--border);
   }
-  .route-arrow {
-    font-size: 18px; color: var(--accent); flex-shrink: 0;
+  .pipe-dot {
+    width: 30px; height: 30px; flex-shrink: 0; border: 2.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    background: var(--panel); font-size: 13px; margin-top: 2px;
+    position: relative; z-index: 1;
   }
-  .trip-pills {
-    display: flex; flex-wrap: wrap; gap: 6px;
+  .pipe-dot.prep    { background: var(--bg); }
+  .pipe-dot.transit { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .pipe-dot.walk    { background: #007a3d; color: #fff; border-color: #007a3d; }
+  .pipe-dot.arrive  { background: var(--text); color: #fff; border-color: var(--text); }
+  .pipe-body { flex: 1; padding-bottom: 18px; }
+  .pipe-time { font-size: 11px; font-weight: 900; color: var(--accent);
+               letter-spacing: .04em; margin-bottom: 2px; }
+  .pipe-label { font-size: 13px; font-weight: 700; }
+  .pipe-dur   { font-size: 11px; color: var(--dim); margin-top: 2px; }
+
+  /* map */
+  .plan-map {
+    border-top: 3px solid var(--border);
+    height: 220px; overflow: hidden; position: relative;
   }
-  .pill {
-    padding: 3px 10px; border: 2px solid var(--border);
-    font-size: 11px; font-weight: 700; letter-spacing: .04em;
-    text-transform: uppercase; background: var(--bg);
-  }
-  .pill.metro   { background: #d4006e; color: #fff; border-color: #d4006e; }
-  .pill.metrobus{ background: #e85a00; color: #fff; border-color: #e85a00; }
-  .pill.walk    { background: #007a3d; color: #fff; border-color: #007a3d; }
-  .trip-cta {
-    display: flex; gap: 8px;
-  }
+  .plan-map iframe { width: 100%; height: 100%; border: none; display: block; }
+
+  .trip-cta { display: flex; gap: 8px; padding: 12px 16px; border-top: 2px solid var(--border); }
   .btn-primary {
     flex: 1; padding: 11px 10px; border: 2.5px solid var(--border); border-radius: 0;
     background: var(--accent); color: #fff; font-size: 12px; font-weight: 900;
@@ -445,7 +461,7 @@ export const HOME_HTML = `<!DOCTYPE html>
 
     <p class="section-label">Próximo viaje</p>
 
-    <!-- placeholder: sin viaje agendado -->
+    <!-- estado vacío -->
     <div class="empty-card" id="no-trip">
       <div class="empty-icon">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -453,28 +469,27 @@ export const HOME_HTML = `<!DOCTYPE html>
           <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
         </svg>
       </div>
-      <p>Sin viajes agendados<br>— próximamente —</p>
-      <button class="btn-primary" onclick="switchTab('chat')">Planificar viaje</button>
+      <p>Sin plan activo.<br>Dile al chat tu próximo destino.</p>
+      <button class="btn-primary" onclick="switchTab('chat')">Planificar</button>
     </div>
 
-    <!-- placeholder: viaje de ejemplo (oculto por defecto, visible cuando haya datos) -->
-    <div class="next-trip-card" id="trip-card" style="display:none">
-      <div class="trip-header">
+    <!-- plan activo (se llena dinámicamente) -->
+    <div class="plan-card" id="plan-card" style="display:none">
+      <div class="plan-header">
         <div>
-          <div class="trip-time">08:15 <span>hrs</span></div>
-          <div style="font-size:11px;color:var(--dim);font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-top:2px">Lunes 11 ago</div>
+          <div class="plan-event" id="plan-event">—</div>
+          <div class="plan-dest"  id="plan-dest">—</div>
         </div>
-        <span class="trip-badge">Próximo</span>
+        <div class="plan-arrival">
+          <div class="big" id="plan-arrival-time">—</div>
+          <div class="lbl">Llegada</div>
+        </div>
       </div>
-      <div class="trip-route-row">
-        <span class="trip-origin" id="tc-origin">—</span>
-        <span class="route-arrow">→</span>
-        <span class="trip-dest"   id="tc-dest">—</span>
-      </div>
-      <div class="trip-pills" id="tc-pills"></div>
+      <div class="pipeline" id="pipeline"></div>
+      <div class="plan-map" id="plan-map"></div>
       <div class="trip-cta">
-        <button class="btn-primary"  onclick="switchTab('chat')">Ver ruta</button>
-        <button class="btn-secondary">Editar</button>
+        <button class="btn-primary"  onclick="switchTab('chat')">Actualizar plan</button>
+        <button class="btn-secondary" id="btn-clear-plan">Borrar</button>
       </div>
     </div>
 
@@ -569,6 +584,7 @@ export const HOME_HTML = `<!DOCTYPE html>
 
 <script>
 "use strict";
+window.GMAPS_KEY = "__GMAPS_KEY__";
 /* ── utils ── */
 const $ = id => document.getElementById(id);
 
@@ -808,7 +824,79 @@ async function loadStats() {
     const trips = await res.json();
     $("stat-trips").textContent = trips.length || "0";
   } catch { /* ignore */ }
+  loadPlan();
 }
+
+/* ── plan / pipeline ── */
+const STEP_ICON = { prep: "⚙", transit: "🚇", walk: "🚶", arrive: "📍" };
+
+function fmtTime(iso) {
+  try { return new Date(iso).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false }); }
+  catch { return "—"; }
+}
+function fmtDate(iso) {
+  try { return new Date(iso).toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" }); }
+  catch { return ""; }
+}
+
+async function loadPlan() {
+  if (!userId) return;
+  try {
+    const res = await fetch("plan?userId=" + encodeURIComponent(userId));
+    const plan = await res.json();
+    if (!plan) { $("no-trip").style.display = ""; $("plan-card").style.display = "none"; return; }
+    renderPlan(plan);
+  } catch { /* ignore */ }
+}
+
+function renderPlan(plan) {
+  $("no-trip").style.display = "none";
+  $("plan-card").style.display = "";
+
+  $("plan-event").textContent = plan.event_label ?? "Plan";
+  $("plan-dest").textContent  = plan.destination ?? "";
+  $("plan-arrival-time").textContent = fmtTime(plan.arrival_time) + " · " + fmtDate(plan.arrival_time);
+
+  // pipeline
+  const pipe = $("pipeline");
+  pipe.innerHTML = "";
+  (plan.steps ?? []).forEach((s, i) => {
+    const isLast = i === plan.steps.length - 1;
+    const div = document.createElement("div");
+    div.className = "pipe-step";
+    div.innerHTML =
+      \`<div class="pipe-dot \${s.type}">\${STEP_ICON[s.type] ?? "•"}</div>\` +
+      (!isLast ? \`<div class="pipe-line"></div>\` : "") +
+      \`<div class="pipe-body">
+        <div class="pipe-time">\${fmtTime(s.start)}</div>
+        <div class="pipe-label">\${s.label}</div>
+        \${s.duration > 0 ? \`<div class="pipe-dur">\${s.duration} min</div>\` : ""}
+      </div>\`;
+    pipe.appendChild(div);
+  });
+
+  // map — Google Maps Embed (sin JS API, solo iframe)
+  const mapEl = $("plan-map");
+  const apiKey = "";  // se inyecta desde window.GMAPS_KEY si está disponible
+  const key = window.GMAPS_KEY ?? "";
+  if (key && plan.origin && plan.destination) {
+    const src = \`https://www.google.com/maps/embed/v1/directions?key=\${key}\` +
+      \`&origin=\${encodeURIComponent(plan.origin)}\` +
+      \`&destination=\${encodeURIComponent(plan.destination)}\` +
+      \`&mode=transit&language=es\`;
+    mapEl.innerHTML = \`<iframe src="\${src}" allowfullscreen loading="lazy"></iframe>\`;
+  } else {
+    const q = plan.destination ? encodeURIComponent(plan.destination) : "";
+    mapEl.innerHTML = \`<iframe src="https://www.google.com/maps/embed/v1/place?key=\${key}&q=\${q}&language=es" allowfullscreen loading="lazy"></iframe>\`;
+  }
+}
+
+$("btn-clear-plan")?.addEventListener("click", async () => {
+  // borra llamando al endpoint con plan null
+  await fetch("plan?userId=" + encodeURIComponent(userId), { method: "DELETE" });
+  $("plan-card").style.display = "none";
+  $("no-trip").style.display = "";
+});
 
 /* ── tabs ── */
 let chatGreeted = false;

@@ -1,7 +1,7 @@
 import { Agent, tool } from "@strands-agents/sdk";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { getSession, putSession } from "./db.mjs";
+import { getSession, putSession, getPlan, putPlan } from "./db.mjs";
 
 // Use AnthropicModel when ANTHROPIC_API_KEY is set, Bedrock otherwise (Lambda)
 let model;
@@ -44,6 +44,8 @@ export function getTrips(userId) {
   const row = getSession(`trips#${userId}`);
   return row ? JSON.parse(row.messages) : [];
 }
+
+export { getPlan };
 
 // ---------- Tools ----------
 
@@ -189,24 +191,94 @@ const getWeatherCdmx = tool({
   },
 });
 
-const SYSTEM_PROMPT = `Eres un agente de planificación de viajes en transporte público dentro de la CDMX.
+const SYSTEM_PROMPT = `Eres un agente de planificación de día para transporte público en CDMX. Ayudas al usuario a no llegar tarde planeando todo lo que necesita hacer antes de salir.
 
 HERRAMIENTAS DISPONIBLES:
-- get_transit_route: obtiene hasta 3 opciones de ruta real (Metro, Metrobús, RTP, tramos a pie) con tiempos, paradas y tarifa. Úsala siempre que el usuario pida una ruta.
-- get_weather_cdmx: obtiene el clima actual en CDMX (temperatura, lluvia, condición). Úsala antes de estimar tiempos para ajustar por lluvia o calor.
+- get_weather_cdmx: clima actual en CDMX. Úsala antes de cualquier ruta.
+- get_transit_route: hasta 3 opciones de ruta real (Metro, Metrobús, RTP, tramos a pie). Úsala siempre que el usuario pida una ruta.
+- plan_day: genera un pipeline completo del día (pasos como bañarse, desayunar, salir, tomar transporte, llegar) y lo guarda para mostrarse en la pantalla principal. Úsala cuando el usuario describa un plan o evento futuro con destino y hora.
 
 REGLAS:
-1. Nunca inventes rutas, tiempos, nombres de líneas ni tarifas — usa únicamente los datos que devuelven las herramientas.
-2. Llama a get_weather_cdmx primero para cada consulta de ruta, luego a get_transit_route.
-3. Si hay lluvia activa (precipitation_mm > 0 o weathercode ≥ 51), añade el tiempo de advertencia al total y avisa al usuario.
-4. Presenta siempre las opciones de ruta devueltas (hasta 3), indicando cuál es la más rápida y cuál tiene menos transbordos.
-5. Si el usuario da una hora de llegada, calcula la hora de salida necesaria restando la duración total al arribo deseado.
-6. Formato de respuesta: una línea resumen, luego tabla/lista con cada opción (líneas usadas → duración → tarifa → advertencia de clima si aplica).
-7. Sé explícito cuando un dato es estimado y no garantizado.`;
+1. Nunca inventes rutas, tiempos ni tarifas — usa únicamente los datos de las herramientas.
+2. Para plan_day: llama primero a get_weather_cdmx y get_transit_route para tener tiempos reales, luego genera el pipeline retrocediendo desde la hora de llegada.
+3. Cada paso del pipeline debe tener: tipo (prep/transit/walk/arrive), label, hora de inicio, duración en minutos y tolerancia sugerida.
+4. Añade pasos de preparación realistas (bañarse ~20 min, desayunar ~15 min, vestirse ~10 min) antes del transporte.
+5. Si llueve, agrega 10 min de tolerancia a los pasos de caminar y transporte superficial.
+6. Al responder al usuario después de plan_day, confirma el plan con un resumen legible y la hora de salida calculada.`;
 
 
 export async function* answerWith(message, sessionId, userId) {
   const history = loadHistory(sessionId);
+
+  const planDayTool = tool({
+    name: "plan_day",
+    description: "Generate a full-day pipeline and save it as the user's active plan shown on the home screen. Call this when the user describes a future event with a destination and arrival time.",
+    inputSchema: z.object({
+      event_label: z.string().describe("Short name for the event, e.g. 'Palacio de Bellas Artes con novia'"),
+      destination: z.string().describe("Destination address or landmark"),
+      arrival_time: z.string().describe("Desired arrival time in ISO 8601, e.g. '2026-08-11T10:00:00-06:00'"),
+      origin: z.string().describe("Starting address (user's home or current location)"),
+      transit_duration_min: z.number().describe("Transit duration in minutes from get_transit_route"),
+      transit_summary: z.string().describe("Best route summary, e.g. 'Metro Línea 2 + Metrobús L4'"),
+      rain_warning: z.boolean().describe("True if weather tool reported active rain"),
+      extra_notes: z.string().optional().describe("Any extra context, e.g. 'llevar paraguas, comprar flores'"),
+    }),
+    callback: ({ event_label, destination, arrival_time, origin, transit_duration_min, transit_summary, rain_warning, extra_notes }) => {
+      const arrivalMs = new Date(arrival_time).getTime();
+      const toleranceMin = rain_warning ? 15 : 10;
+      const steps = [];
+
+      // Build pipeline backwards from arrival
+      let cursor = arrivalMs;
+
+      steps.unshift({ type: "arrive", label: `Llegar a ${destination}`, start: null, duration: 0 });
+
+      cursor -= toleranceMin * 60000;
+      steps.unshift({ type: "transit", label: transit_summary, start: null, duration: transit_duration_min + toleranceMin });
+
+      cursor -= (transit_duration_min + toleranceMin) * 60000;
+      steps.unshift({ type: "walk",  label: "Caminar a la estación", start: null, duration: rain_warning ? 15 : 10 });
+
+      cursor -= (rain_warning ? 15 : 10) * 60000;
+      steps.unshift({ type: "prep",  label: "Vestirse y preparar bolso", start: null, duration: 10 });
+
+      cursor -= 10 * 60000;
+      steps.unshift({ type: "prep",  label: "Desayunar", start: null, duration: 15 });
+
+      cursor -= 15 * 60000;
+      steps.unshift({ type: "prep",  label: "Bañarse y arreglarse", start: null, duration: 20 });
+
+      cursor -= 20 * 60000;
+      steps.unshift({ type: "prep",  label: "Despertar", start: null, duration: 5 });
+
+      // Fill start times forward from wake-up
+      let t = cursor;
+      for (const s of steps) {
+        s.start = new Date(t).toISOString();
+        t += s.duration * 60000;
+      }
+      // arrival step gets actual arrival time
+      steps[steps.length - 1].start = arrival_time;
+
+      const plan = {
+        id: randomUUID(),
+        event_label,
+        destination,
+        origin,
+        arrival_time,
+        transit_summary,
+        rain_warning,
+        extra_notes: extra_notes ?? null,
+        wake_time: steps[0].start,
+        depart_time: steps.find(s => s.type === "walk")?.start ?? null,
+        steps,
+        created_at: new Date().toISOString(),
+      };
+
+      putPlan(userId, plan);
+      return JSON.stringify({ ok: true, wake_time: plan.wake_time, depart_time: plan.depart_time, steps: plan.steps.length });
+    },
+  });
 
   const saveTripTool = tool({
     name: "save_trip",
@@ -228,7 +300,7 @@ export async function* answerWith(message, sessionId, userId) {
     model,
     systemPrompt: SYSTEM_PROMPT,
     messages: history,
-    tools: [getWeatherCdmx, getTransitRoute, saveTripTool],
+    tools: [getWeatherCdmx, getTransitRoute, planDayTool, saveTripTool],
     printer: false,
   });
 
