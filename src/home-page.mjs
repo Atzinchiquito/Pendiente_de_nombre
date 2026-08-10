@@ -831,6 +831,7 @@ function switchTab(name) {
     t.classList.toggle("active", t.dataset.view === name));
   document.querySelectorAll(".view").forEach(v =>
     v.classList.toggle("active", v.id === "view-" + name));
+  $("fab-usuarios").style.display = name === "chat" ? "none" : "";
   if (name === "chat") { showChatGreeting(); $("box").focus(); }
 }
 document.querySelectorAll(".tab").forEach(t =>
