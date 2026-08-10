@@ -1,7 +1,7 @@
 import { Agent, tool } from "@strands-agents/sdk";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { getSession, putSession, getPlan, putPlan } from "./db.mjs";
+import { getSession, putSession, getPlan, putPlan, getProfile } from "./db.mjs";
 
 // Use AnthropicModel when ANTHROPIC_API_KEY is set, Bedrock otherwise (Lambda)
 let model;
@@ -213,6 +213,11 @@ REGLAS:
 export async function* answerWith(message, sessionId, userId) {
   const history = loadHistory(sessionId);
 
+  const profile = userId ? getProfile(userId) : null;
+  const profileContext = profile
+    ? `\n\nPERFIL DEL USUARIO ACTIVO:\n- Nombre: ${profile.nombre ?? "N/A"}\n- Edad: ${profile.edad ?? "N/A"}\n- Sexo: ${profile.sexo ?? "N/A"}\n- Dirección habitual: ${profile.ubicacion ?? "no especificada"}\n\nSi el usuario no indica un punto de partida, usa su dirección habitual como origen. Si la dirección no está disponible, pregunta únicamente eso.`
+    : "";
+
   const planDayTool = tool({
     name: "plan_day",
     description: "Generate a full-day pipeline and save it as the user's active plan shown on the home screen. Call this when the user describes a future event with a destination and arrival time.",
@@ -301,7 +306,7 @@ export async function* answerWith(message, sessionId, userId) {
 
   const agent = new Agent({
     model,
-    systemPrompt: SYSTEM_PROMPT,
+    systemPrompt: SYSTEM_PROMPT + profileContext,
     messages: history,
     tools: [getWeatherCdmx, getTransitRoute, planDayTool, saveTripTool],
     printer: false,

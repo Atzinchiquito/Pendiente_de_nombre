@@ -6,8 +6,8 @@ import express from "express";
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import { HOME_HTML } from "./home-page.mjs";
 import { answerWith, getTrips, getPlan } from "./agent.mjs";
-import { getUserByName, createUser, getAllProfiles, putPlan } from "./db.mjs";
-import { loadProfile } from "./userProfile.mjs";
+import { getUserByName, createUser, getAllProfiles, countProfiles, putPlan } from "./db.mjs";
+import { loadProfile, saveProfile } from "./userProfile.mjs";
 
 function hashPassword(password) {
   const salt = randomBytes(16).toString("hex");
@@ -119,13 +119,24 @@ app.post("/login", (req, res) => {
 });
 
 app.get("/profiles", (req, res) => {
-  res.json(getAllProfiles());
+  const loginUserId = req.query.loginUserId ?? "";
+  res.json(getAllProfiles(loginUserId));
 });
 
 app.get("/profile", (req, res) => {
   const userId = req.query.userId ?? "anonymous";
   const profile = loadProfile(userId);
   res.json({ nombre: profile?.nombre ?? null });
+});
+
+app.post("/profile", (req, res) => {
+  const { userId, loginUserId, nombre, edad, sexo, ubicacion } = req.body ?? {};
+  if (!userId || !loginUserId) return res.status(400).json({ error: "userId y loginUserId requeridos." });
+  if (countProfiles(loginUserId) >= 3) {
+    return res.status(409).json({ error: "Límite de 3 perfiles alcanzado." });
+  }
+  saveProfile(userId, loginUserId, { nombre, edad: edad ? Number(edad) : null, sexo, ubicacion });
+  res.json({ ok: true });
 });
 
 app.get("/plan", (req, res) => {

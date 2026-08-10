@@ -508,10 +508,10 @@ export const HOME_HTML = `<!DOCTYPE html>
 
     <div id="fab-usuarios">
       <div id="dropdown-usuarios" class="hidden">
-        <button class="drop-item" id="drop-nuevo-usuario">Nuevo Usuario</button>
-        <button class="drop-item" id="drop-cambiar-usuario">Cambiar Usuario</button>
+        <button class="drop-item" id="drop-nuevo-usuario">Nuevo Perfil</button>
+        <button class="drop-item" id="drop-cambiar-usuario">Cambiar Perfil</button>
       </div>
-      <button id="btn-usuarios">Usuarios</button>
+      <button id="btn-usuarios">Perfiles</button>
     </div>
 
   </div><!-- /view-home -->
@@ -519,7 +519,7 @@ export const HOME_HTML = `<!DOCTYPE html>
   <!-- MODAL CAMBIAR USUARIO -->
   <div id="modal-cambiar" class="modal-overlay hidden">
     <div class="modal-box">
-      <h2 class="modal-title">Cambiar Usuario</h2>
+      <h2 class="modal-title">Cambiar Perfil</h2>
       <div id="cambiar-lista"></div>
       <div class="modal-actions">
         <button id="cambiar-cancelar" class="btn-secondary">Cancelar</button>
@@ -555,6 +555,7 @@ export const HOME_HTML = `<!DOCTYPE html>
       </div>
 
       <div class="modal-actions">
+        <p id="perfil-error" style="color:var(--accent);font-size:11px;font-weight:700;min-height:14px;"></p>
         <button id="perfil-cancelar" class="btn-secondary">Cancelar</button>
         <button id="perfil-hecho" class="btn-primary">Hecho</button>
       </div>
@@ -604,7 +605,7 @@ async function hashName(name) {
 }
 
 /* ── session state ── */
-let userId = null, currentUser = null;
+let userId = null, currentUser = null, loginUserId = null;
 const sessionId = crypto.randomUUID();
 
 /* ── login / register logic ── */
@@ -646,6 +647,7 @@ toggleBtn.addEventListener("click", () => setMode(!isRegister));
 function applySession(name, id) {
   currentUser = name;
   userId = id;
+  loginUserId = id;
   userBadge.textContent = name + " · salir";
   greeting.textContent  = "Hola, " + name.split(" ")[0];
   $("app").classList.add("visible");
@@ -754,15 +756,17 @@ $("drop-nuevo-usuario").addEventListener("click", () => {
   modalPerfil.classList.remove("hidden");
   $("perfil-nombre").focus();
 });
+let selectedCambiarId = null;
+
 $("drop-cambiar-usuario").addEventListener("click", async () => {
   dropdown.classList.add("hidden");
+  selectedCambiarId = null;
   const lista = $("cambiar-lista");
   lista.innerHTML = "";
-  let selectedId = null;
 
   let perfiles = [];
   try {
-    const res = await fetch("profiles");
+    const res = await fetch("profiles?loginUserId=" + encodeURIComponent(loginUserId ?? ""));
     perfiles = await res.json();
   } catch { /* ignorar */ }
 
@@ -779,7 +783,7 @@ $("drop-cambiar-usuario").addEventListener("click", async () => {
       btn.addEventListener("click", () => {
         lista.querySelectorAll(".usuario-item").forEach(b => b.classList.remove("selected"));
         btn.classList.add("selected");
-        selectedId = user_id;
+        selectedCambiarId = user_id;
       });
       lista.appendChild(btn);
     });
@@ -789,12 +793,48 @@ $("drop-cambiar-usuario").addEventListener("click", async () => {
 });
 
 $("cambiar-cancelar").addEventListener("click", () => $("modal-cambiar").classList.add("hidden"));
-$("cambiar-ok").addEventListener("click", () => $("modal-cambiar").classList.add("hidden"));
+$("cambiar-ok").addEventListener("click", () => {
+  if (selectedCambiarId) {
+    userId = selectedCambiarId;
+    chatGreeted = false;
+    loadStats();
+  }
+  $("modal-cambiar").classList.add("hidden");
+});
 $("modal-cambiar").addEventListener("click", e => { if (e.target === $("modal-cambiar")) $("modal-cambiar").classList.add("hidden"); });
 
-$("perfil-cancelar").addEventListener("click", () => modalPerfil.classList.add("hidden"));
-$("perfil-hecho").addEventListener("click", () => modalPerfil.classList.add("hidden"));
-modalPerfil.addEventListener("click", e => { if (e.target === modalPerfil) modalPerfil.classList.add("hidden"); });
+function clearPerfilForm() {
+  $("perfil-nombre").value = "";
+  $("perfil-edad").value = "";
+  $("perfil-sexo").value = "";
+  $("perfil-direccion").value = "";
+  $("perfil-error").textContent = "";
+}
+
+$("perfil-cancelar").addEventListener("click", () => {
+  clearPerfilForm();
+  modalPerfil.classList.add("hidden");
+});
+$("perfil-hecho").addEventListener("click", async () => {
+  const nombre    = $("perfil-nombre").value.trim();
+  const edad      = $("perfil-edad").value.trim();
+  const sexo      = $("perfil-sexo").value.trim();
+  const ubicacion = $("perfil-direccion").value.trim();
+  if (!nombre) { $("perfil-nombre").focus(); return; }
+  const profileId = crypto.randomUUID().replace(/-/g, "").slice(0, 32);
+  try {
+    const res = await fetch("profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: profileId, loginUserId: loginUserId, nombre, edad, sexo, ubicacion }),
+    });
+    const data = await res.json();
+    if (!res.ok) { $("perfil-error").textContent = data.error ?? "Error al guardar."; return; }
+  } catch { $("perfil-error").textContent = "Error de red."; return; }
+  clearPerfilForm();
+  modalPerfil.classList.add("hidden");
+});
+modalPerfil.addEventListener("click", e => { if (e.target === modalPerfil) { clearPerfilForm(); modalPerfil.classList.add("hidden"); } });
 
 // restore session
 const savedName = decodeURIComponent(getCookie("userName") ?? "") || sessionStorage.getItem("userName");
@@ -958,6 +998,7 @@ async function ask(message) {
     }
   } catch (err) { addMsg("error", "⚠ " + err.message); }
   sendEl.disabled = false; boxEl.focus();
+  loadPlan();
 }
 
 $("chat-form").addEventListener("submit", e => {
