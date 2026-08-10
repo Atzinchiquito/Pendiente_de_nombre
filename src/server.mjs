@@ -3,7 +3,8 @@ import express from "express";
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import { HOME_HTML } from "./home-page.mjs";
 import { answerWith, getTrips } from "./agent.mjs";
-import { getUserByName, createUser } from "./db.mjs";
+import { getUserByName, createUser, getAllProfiles } from "./db.mjs";
+import { loadProfile } from "./userProfile.mjs";
 
 function hashPassword(password) {
   const salt = randomBytes(16).toString("hex");
@@ -111,6 +112,16 @@ app.post("/login", (req, res) => {
     return res.status(401).json({ error: "Usuario o contraseña incorrectos." });
   }
   res.json({ userId: user.user_id });
+});
+
+app.get("/profiles", (req, res) => {
+  res.json(getAllProfiles());
+});
+
+app.get("/profile", (req, res) => {
+  const userId = req.query.userId ?? "anonymous";
+  const profile = loadProfile(userId);
+  res.json({ nombre: profile?.nombre ?? null });
 });
 
 app.get("/trips", async (req, res) => {
