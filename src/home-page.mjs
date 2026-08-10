@@ -106,14 +106,6 @@ export const HOME_HTML = `<!DOCTYPE html>
   #login-btn:active { box-shadow: none; transform: translate(4px,4px); }
   #login-btn:disabled { opacity: .5; cursor: default; }
 
-  .divider {
-    display: flex; align-items: center; gap: 10px;
-    font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--dim);
-  }
-  .divider::before, .divider::after {
-    content: ''; flex: 1; height: 2px; background: var(--border);
-  }
-
   /* ── MAIN APP ───────────────────────────────────────── */
   #app { display: none; flex-direction: column; min-height: 100vh; }
   #app.visible { display: flex; }
@@ -332,6 +324,12 @@ export const HOME_HTML = `<!DOCTYPE html>
       <span class="field-hint" id="hint-name"></span>
     </div>
 
+    <div class="field">
+      <label for="login-pass">Contraseña</label>
+      <input id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+      <span class="field-hint" id="hint-pass"></span>
+    </div>
+
     <label class="remember-row">
       <input type="checkbox" id="remember-me">
       <span class="check-box">
@@ -343,9 +341,6 @@ export const HOME_HTML = `<!DOCTYPE html>
     </label>
 
     <button id="login-btn">Entrar</button>
-
-    <div class="divider">o continúa sin cuenta</div>
-    <button id="guest-btn" class="btn-secondary">Entrar como invitado</button>
   </div>
 </div>
 
@@ -462,21 +457,20 @@ const sessionId = crypto.randomUUID();
 /* ── login logic ── */
 const loginScreen  = $("login-screen");
 const loginNameEl  = $("login-name");
+const loginPassEl  = $("login-pass");
 const hintName     = $("hint-name");
+const hintPass     = $("hint-pass");
 const rememberEl   = $("remember-me");
 const loginBtn     = $("login-btn");
-const guestBtn     = $("guest-btn");
 const userBadge    = $("user-badge");
 const greeting     = $("greeting");
 
 function applySession(name, id) {
   currentUser = name;
   userId = id;
-  const display = name === "invitado" ? "Invitado" : name;
-  userBadge.textContent = display + " · salir";
-  greeting.textContent  = "Hola, " + display.split(" ")[0];
+  userBadge.textContent = name + " · salir";
+  greeting.textContent  = "Hola, " + name.split(" ")[0];
   $("app").classList.add("visible");
-  // transition out
   loginScreen.classList.add("leaving");
   setTimeout(() => loginScreen.classList.add("hidden"), 260);
   loadStats();
@@ -487,49 +481,68 @@ function doLogout() {
   sessionStorage.removeItem("userName"); sessionStorage.removeItem("userId");
   userId = null; currentUser = null;
   userBadge.textContent = "";
-  loginNameEl.value = "";
+  loginNameEl.value = ""; loginPassEl.value = "";
   rememberEl.checked = false;
   $("app").classList.remove("visible");
   loginScreen.classList.remove("hidden", "leaving");
 }
 
-async function doLogin(name, remember) {
-  const id = await hashName(name);
-  if (remember) {
-    setCookie("userName", name, 30); setCookie("userId", id, 30);
-    sessionStorage.removeItem("userName"); sessionStorage.removeItem("userId");
-  } else {
-    delCookie("userName"); delCookie("userId");
-    sessionStorage.setItem("userName", name); sessionStorage.setItem("userId", id);
-  }
-  applySession(name, id);
-}
-
-async function doGuest() {
-  const id = await hashName("guest-" + Date.now());
-  sessionStorage.setItem("userName", "invitado");
-  sessionStorage.setItem("userId", id);
-  applySession("invitado", id);
-}
-
-// validate & submit
-loginBtn.addEventListener("click", async () => {
+async function doLogin() {
   const name = loginNameEl.value.trim();
+  const pass = loginPassEl.value;
+  let ok = true;
+
   if (!name) {
-    hintName.textContent = "Ingresa tu nombre para continuar.";
+    hintName.textContent = "Ingresa tu nombre.";
     loginNameEl.classList.add("invalid");
-    loginNameEl.focus();
-    return;
+    ok = false;
   }
-  hintName.textContent = "";
-  loginNameEl.classList.remove("invalid");
-  loginBtn.disabled = true; loginBtn.textContent = "Cargando…";
-  await doLogin(name, rememberEl.checked);
-  loginBtn.disabled = false; loginBtn.textContent = "Entrar";
-});
+  if (!pass) {
+    hintPass.textContent = "Ingresa tu contraseña.";
+    loginPassEl.classList.add("invalid");
+    ok = false;
+  }
+  if (!ok) return;
+
+  loginBtn.disabled = true; loginBtn.textContent = "Verificando…";
+
+  try {
+    const res = await fetch("login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, password: pass }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      hintPass.textContent = data.error ?? "Contraseña incorrecta.";
+      loginPassEl.classList.add("invalid");
+      loginPassEl.select();
+      return;
+    }
+
+    // success
+    const id = data.userId;
+    if (rememberEl.checked) {
+      setCookie("userName", name, 30); setCookie("userId", id, 30);
+      sessionStorage.removeItem("userName"); sessionStorage.removeItem("userId");
+    } else {
+      delCookie("userName"); delCookie("userId");
+      sessionStorage.setItem("userName", name); sessionStorage.setItem("userId", id);
+    }
+    applySession(name, id);
+  } catch (err) {
+    hintPass.textContent = "Error de red, intenta de nuevo.";
+  } finally {
+    loginBtn.disabled = false; loginBtn.textContent = "Entrar";
+  }
+}
+
+loginBtn.addEventListener("click", doLogin);
 loginNameEl.addEventListener("input",  () => { hintName.textContent = ""; loginNameEl.classList.remove("invalid"); });
-loginNameEl.addEventListener("keydown", e => { if (e.key === "Enter") loginBtn.click(); });
-guestBtn.addEventListener("click", doGuest);
+loginPassEl.addEventListener("input",  () => { hintPass.textContent = ""; loginPassEl.classList.remove("invalid"); });
+loginNameEl.addEventListener("keydown", e => { if (e.key === "Enter") loginPassEl.focus(); });
+loginPassEl.addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
 userBadge.addEventListener("click", doLogout);
 
 // restore session

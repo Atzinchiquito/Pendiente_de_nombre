@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import { createHash } from "crypto";
 import { HOME_HTML } from "./home-page.mjs";
 import { answerWith, getTrips } from "./agent.mjs";
 
@@ -62,6 +63,29 @@ app.get("/sw.js", (req, res) => {
 app.get("/icon.svg", (req, res) => {
   res.setHeader("Content-Type", "image/svg+xml");
   res.send(ICON_SVG);
+});
+
+app.post("/login", (req, res) => {
+  const { name, password } = req.body ?? {};
+  const expected = process.env.APP_PASSWORD;
+
+  if (!expected) {
+    return res.status(500).json({ error: "APP_PASSWORD no configurada en el servidor." });
+  }
+  if (!name || !password) {
+    return res.status(400).json({ error: "Nombre y contraseña requeridos." });
+  }
+  if (password !== expected) {
+    return res.status(401).json({ error: "Contraseña incorrecta." });
+  }
+
+  // Derive userId the same way the client does: SHA-256 of lowercase name
+  const userId = createHash("sha256")
+    .update(name.trim().toLowerCase())
+    .digest("hex")
+    .slice(0, 32);
+
+  res.json({ userId });
 });
 
 app.get("/trips", async (req, res) => {
