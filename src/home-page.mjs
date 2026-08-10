@@ -314,13 +314,13 @@ export const HOME_HTML = `<!DOCTYPE html>
       </svg>
     </div>
     <div>
-      <h1>Bienvenido</h1>
-      <p class="subtitle">Planificador de transporte CDMX</p>
+      <h1 id="auth-title">Bienvenido</h1>
+      <p class="subtitle" id="auth-subtitle">Inicia sesión para continuar</p>
     </div>
 
     <div class="field">
-      <label for="login-name">Nombre</label>
-      <input id="login-name" type="text" placeholder="Tu nombre" autocomplete="name" maxlength="40">
+      <label for="login-name">Usuario</label>
+      <input id="login-name" type="text" placeholder="Tu nombre" autocomplete="username" maxlength="40">
       <span class="field-hint" id="hint-name"></span>
     </div>
 
@@ -328,6 +328,12 @@ export const HOME_HTML = `<!DOCTYPE html>
       <label for="login-pass">Contraseña</label>
       <input id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password">
       <span class="field-hint" id="hint-pass"></span>
+    </div>
+
+    <div class="field" id="field-confirm" style="display:none">
+      <label for="login-confirm">Confirmar contraseña</label>
+      <input id="login-confirm" type="password" placeholder="••••••••" autocomplete="new-password">
+      <span class="field-hint" id="hint-confirm"></span>
     </div>
 
     <label class="remember-row">
@@ -341,6 +347,11 @@ export const HOME_HTML = `<!DOCTYPE html>
     </label>
 
     <button id="login-btn">Entrar</button>
+
+    <p style="text-align:center;font-size:12px;color:var(--dim)">
+      <span id="toggle-text">¿No tienes cuenta?</span>
+      <button id="toggle-btn" style="background:none;border:none;font-family:inherit;font-size:12px;font-weight:700;color:var(--accent);cursor:pointer;text-decoration:underline;padding:0;margin-left:4px;">Regístrate</button>
+    </p>
   </div>
 </div>
 
@@ -454,16 +465,41 @@ async function hashName(name) {
 let userId = null, currentUser = null;
 const sessionId = crypto.randomUUID();
 
-/* ── login logic ── */
-const loginScreen  = $("login-screen");
-const loginNameEl  = $("login-name");
-const loginPassEl  = $("login-pass");
-const hintName     = $("hint-name");
-const hintPass     = $("hint-pass");
-const rememberEl   = $("remember-me");
-const loginBtn     = $("login-btn");
-const userBadge    = $("user-badge");
-const greeting     = $("greeting");
+/* ── login / register logic ── */
+const loginScreen   = $("login-screen");
+const loginNameEl   = $("login-name");
+const loginPassEl   = $("login-pass");
+const loginConfirm  = $("login-confirm");
+const hintName      = $("hint-name");
+const hintPass      = $("hint-pass");
+const hintConfirm   = $("hint-confirm");
+const rememberEl    = $("remember-me");
+const loginBtn      = $("login-btn");
+const toggleBtn     = $("toggle-btn");
+const toggleText    = $("toggle-text");
+const fieldConfirm  = $("field-confirm");
+const authTitle     = $("auth-title");
+const authSubtitle  = $("auth-subtitle");
+const userBadge     = $("user-badge");
+const greeting      = $("greeting");
+
+let isRegister = false;
+
+function setMode(register) {
+  isRegister = register;
+  authTitle.textContent     = register ? "Crear cuenta" : "Bienvenido";
+  authSubtitle.textContent  = register ? "Regístrate para comenzar" : "Inicia sesión para continuar";
+  loginBtn.textContent      = register ? "Registrarme" : "Entrar";
+  loginPassEl.autocomplete  = register ? "new-password" : "current-password";
+  fieldConfirm.style.display = register ? "" : "none";
+  toggleText.textContent    = register ? "¿Ya tienes cuenta?" : "¿No tienes cuenta?";
+  toggleBtn.textContent     = register ? "Inicia sesión" : "Regístrate";
+  [hintName, hintPass, hintConfirm].forEach(h => h.textContent = "");
+  [loginNameEl, loginPassEl, loginConfirm].forEach(el => el.classList.remove("invalid"));
+  loginNameEl.focus();
+}
+
+toggleBtn.addEventListener("click", () => setMode(!isRegister));
 
 function applySession(name, id) {
   currentUser = name;
@@ -481,33 +517,42 @@ function doLogout() {
   sessionStorage.removeItem("userName"); sessionStorage.removeItem("userId");
   userId = null; currentUser = null;
   userBadge.textContent = "";
-  loginNameEl.value = ""; loginPassEl.value = "";
+  loginNameEl.value = ""; loginPassEl.value = ""; loginConfirm.value = "";
   rememberEl.checked = false;
   $("app").classList.remove("visible");
   loginScreen.classList.remove("hidden", "leaving");
+  setMode(false);
 }
 
-async function doLogin() {
+async function submitAuth() {
   const name = loginNameEl.value.trim();
   const pass = loginPassEl.value;
+  const confirm = loginConfirm.value;
   let ok = true;
 
   if (!name) {
-    hintName.textContent = "Ingresa tu nombre.";
-    loginNameEl.classList.add("invalid");
-    ok = false;
+    hintName.textContent = "Ingresa tu nombre de usuario.";
+    loginNameEl.classList.add("invalid"); ok = false;
   }
   if (!pass) {
     hintPass.textContent = "Ingresa tu contraseña.";
-    loginPassEl.classList.add("invalid");
-    ok = false;
+    loginPassEl.classList.add("invalid"); ok = false;
+  } else if (isRegister && pass.length < 6) {
+    hintPass.textContent = "Mínimo 6 caracteres.";
+    loginPassEl.classList.add("invalid"); ok = false;
+  }
+  if (isRegister && pass && confirm !== pass) {
+    hintConfirm.textContent = "Las contraseñas no coinciden.";
+    loginConfirm.classList.add("invalid"); ok = false;
   }
   if (!ok) return;
 
-  loginBtn.disabled = true; loginBtn.textContent = "Verificando…";
+  loginBtn.disabled = true;
+  loginBtn.textContent = isRegister ? "Registrando…" : "Verificando…";
 
   try {
-    const res = await fetch("login", {
+    const endpoint = isRegister ? "register" : "login";
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, password: pass }),
@@ -515,13 +560,17 @@ async function doLogin() {
     const data = await res.json();
 
     if (!res.ok) {
-      hintPass.textContent = data.error ?? "Contraseña incorrecta.";
-      loginPassEl.classList.add("invalid");
-      loginPassEl.select();
+      // show error on the most relevant field
+      if (res.status === 409 || data.error?.toLowerCase().includes("usuario")) {
+        hintName.textContent = data.error;
+        loginNameEl.classList.add("invalid");
+      } else {
+        hintPass.textContent = data.error ?? "Error al autenticar.";
+        loginPassEl.classList.add("invalid");
+      }
       return;
     }
 
-    // success
     const id = data.userId;
     if (rememberEl.checked) {
       setCookie("userName", name, 30); setCookie("userId", id, 30);
@@ -531,18 +580,21 @@ async function doLogin() {
       sessionStorage.setItem("userName", name); sessionStorage.setItem("userId", id);
     }
     applySession(name, id);
-  } catch (err) {
+  } catch {
     hintPass.textContent = "Error de red, intenta de nuevo.";
   } finally {
-    loginBtn.disabled = false; loginBtn.textContent = "Entrar";
+    loginBtn.disabled = false;
+    loginBtn.textContent = isRegister ? "Registrarme" : "Entrar";
   }
 }
 
-loginBtn.addEventListener("click", doLogin);
-loginNameEl.addEventListener("input",  () => { hintName.textContent = ""; loginNameEl.classList.remove("invalid"); });
-loginPassEl.addEventListener("input",  () => { hintPass.textContent = ""; loginPassEl.classList.remove("invalid"); });
-loginNameEl.addEventListener("keydown", e => { if (e.key === "Enter") loginPassEl.focus(); });
-loginPassEl.addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+loginBtn.addEventListener("click", submitAuth);
+loginNameEl.addEventListener("input",   () => { hintName.textContent = "";    loginNameEl.classList.remove("invalid"); });
+loginPassEl.addEventListener("input",   () => { hintPass.textContent = "";    loginPassEl.classList.remove("invalid"); });
+loginConfirm.addEventListener("input",  () => { hintConfirm.textContent = ""; loginConfirm.classList.remove("invalid"); });
+loginNameEl.addEventListener("keydown",  e => { if (e.key === "Enter") loginPassEl.focus(); });
+loginPassEl.addEventListener("keydown",  e => { if (e.key === "Enter") isRegister ? loginConfirm.focus() : submitAuth(); });
+loginConfirm.addEventListener("keydown", e => { if (e.key === "Enter") submitAuth(); });
 userBadge.addEventListener("click", doLogout);
 
 // restore session

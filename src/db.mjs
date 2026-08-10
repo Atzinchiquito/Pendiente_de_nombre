@@ -24,6 +24,12 @@ db.exec(`
     ubicacion  TEXT,
     updated_at INTEGER
   );
+  CREATE TABLE IF NOT EXISTS users (
+    user_id    TEXT PRIMARY KEY,
+    username   TEXT UNIQUE NOT NULL COLLATE NOCASE,
+    pass_hash  TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
 `);
 
 const stmts = {
@@ -34,6 +40,10 @@ const stmts = {
   getProfile: db.prepare("SELECT * FROM profiles WHERE user_id = ?"),
   putProfile: db.prepare(
     "INSERT OR REPLACE INTO profiles (user_id, nombre, edad, sexo, ubicacion, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
+  ),
+  getUserByName: db.prepare("SELECT * FROM users WHERE username = ?"),
+  createUser: db.prepare(
+    "INSERT INTO users (user_id, username, pass_hash, created_at) VALUES (?, ?, ?, ?)"
   ),
 };
 
@@ -51,4 +61,12 @@ export function getProfile(userId) {
 
 export function putProfile(userId, { nombre, edad, sexo, ubicacion }) {
   stmts.putProfile.run(userId, nombre ?? null, edad ?? null, sexo ?? null, ubicacion ?? null, Date.now());
+}
+
+export function getUserByName(username) {
+  return stmts.getUserByName.get(username) ?? null;
+}
+
+export function createUser(userId, username, passHash) {
+  stmts.createUser.run(userId, username, passHash, Date.now());
 }

@@ -1,8 +1,25 @@
 import "dotenv/config";
 import express from "express";
-import { createHash } from "crypto";
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import { HOME_HTML } from "./home-page.mjs";
 import { answerWith, getTrips } from "./agent.mjs";
+import { getUserByName, createUser } from "./db.mjs";
+
+function hashPassword(password) {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(password, salt, 64).toString("hex");
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password, stored) {
+  const [salt, hash] = stored.split(":");
+  const attempt = scryptSync(password, salt, 64);
+  return timingSafeEqual(attempt, Buffer.from(hash, "hex"));
+}
+
+function deriveUserId(username) {
+  return createHash("sha256").update(username.trim().toLowerCase()).digest("hex").slice(0, 32);
+}
 
 const MANIFEST = JSON.stringify({
   name: "Pendiente de Nombre",
@@ -65,27 +82,35 @@ app.get("/icon.svg", (req, res) => {
   res.send(ICON_SVG);
 });
 
-app.post("/login", (req, res) => {
+app.post("/register", (req, res) => {
   const { name, password } = req.body ?? {};
-  const expected = process.env.APP_PASSWORD;
-
-  if (!expected) {
-    return res.status(500).json({ error: "APP_PASSWORD no configurada en el servidor." });
-  }
   if (!name || !password) {
     return res.status(400).json({ error: "Nombre y contraseña requeridos." });
   }
-  if (password !== expected) {
-    return res.status(401).json({ error: "Contraseña incorrecta." });
+  if (name.trim().length < 2) {
+    return res.status(400).json({ error: "El nombre debe tener al menos 2 caracteres." });
   }
-
-  // Derive userId the same way the client does: SHA-256 of lowercase name
-  const userId = createHash("sha256")
-    .update(name.trim().toLowerCase())
-    .digest("hex")
-    .slice(0, 32);
-
+  if (password.length < 6) {
+    return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres." });
+  }
+  if (getUserByName(name.trim())) {
+    return res.status(409).json({ error: "Ese nombre de usuario ya está registrado." });
+  }
+  const userId = deriveUserId(name);
+  createUser(userId, name.trim(), hashPassword(password));
   res.json({ userId });
+});
+
+app.post("/login", (req, res) => {
+  const { name, password } = req.body ?? {};
+  if (!name || !password) {
+    return res.status(400).json({ error: "Nombre y contraseña requeridos." });
+  }
+  const user = getUserByName(name.trim());
+  if (!user || !verifyPassword(password, user.pass_hash)) {
+    return res.status(401).json({ error: "Usuario o contraseña incorrectos." });
+  }
+  res.json({ userId: user.user_id });
 });
 
 app.get("/trips", async (req, res) => {
