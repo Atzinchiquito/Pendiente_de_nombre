@@ -3,6 +3,8 @@ import express from "express";
 import { createHash } from "crypto";
 import { HOME_HTML } from "./home-page.mjs";
 import { answerWith, getTrips } from "./agent.mjs";
+import { loadProfile } from "./userProfile.mjs";
+import { getAllProfiles } from "./db.mjs";
 
 const MANIFEST = JSON.stringify({
   name: "Pendiente de Nombre",
@@ -86,6 +88,16 @@ app.post("/login", (req, res) => {
     .slice(0, 32);
 
   res.json({ userId });
+});
+
+app.get("/profiles", (req, res) => {
+  res.json(getAllProfiles());
+});
+
+app.get("/profile", (req, res) => {
+  const userId = req.query.userId ?? "anonymous";
+  const profile = loadProfile(userId);
+  res.json({ nombre: profile?.nombre ?? null });
 });
 
 app.get("/trips", async (req, res) => {

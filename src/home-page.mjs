@@ -151,6 +151,79 @@ export const HOME_HTML = `<!DOCTYPE html>
   .view { display: none; flex: 1; flex-direction: column; }
   .view.active { display: flex; }
 
+  /* ── MODAL ─────────────────────────────────────────── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200; padding: 24px;
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal-box {
+    width: 100%; max-width: 340px; background: var(--panel);
+    border: 3px solid var(--border); box-shadow: 6px 6px 0 var(--border);
+    padding: 24px 20px; display: flex; flex-direction: column; gap: 16px;
+  }
+  .modal-title {
+    font-size: 18px; font-weight: 900; text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+  .modal-actions {
+    display: flex; gap: 10px; margin-top: 4px;
+  }
+  #cambiar-lista {
+    display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow-y: auto;
+  }
+  .usuario-item {
+    padding: 10px 14px; background: none; border: 2px solid transparent;
+    font-family: inherit; font-size: 14px; font-weight: 700;
+    color: var(--accent); text-align: left; cursor: pointer;
+    text-decoration: underline; text-underline-offset: 3px;
+    border-radius: 0; transition: background .1s, border-color .1s;
+  }
+  .usuario-item:hover { background: var(--bg); }
+  .usuario-item.selected {
+    background: var(--bg); border-color: var(--accent);
+    text-decoration: none; color: var(--text);
+  }
+  .cambiar-empty {
+    font-size: 13px; color: var(--dim); padding: 8px 0;
+    font-style: italic;
+  }
+
+  /* ── USUARIOS FAB + DROPDOWN ───────────────────────── */
+  #fab-usuarios {
+    position: fixed; bottom: 24px; right: 20px;
+    z-index: 100;
+  }
+  #btn-usuarios {
+    padding: 14px 22px; border-radius: 999px;
+    background: var(--accent); color: #fff;
+    border: 2.5px solid var(--border);
+    box-shadow: 4px 4px 0 var(--border);
+    font-family: inherit; font-size: 13px; font-weight: 900;
+    letter-spacing: .07em; text-transform: uppercase;
+    cursor: pointer; display: block; width: 100%;
+    transition: box-shadow .1s, transform .1s;
+  }
+  #btn-usuarios:active { box-shadow: none; transform: translate(4px,4px); }
+  #dropdown-usuarios {
+    position: absolute; bottom: calc(100% + 8px); right: 0;
+    background: var(--panel); border: 2.5px solid var(--border);
+    box-shadow: 4px 4px 0 var(--border);
+    display: flex; flex-direction: column; min-width: 160px;
+    overflow: hidden;
+  }
+  #dropdown-usuarios.hidden { display: none; }
+  .drop-item {
+    padding: 12px 16px; background: none; border: none; border-bottom: 1.5px solid var(--border);
+    font-family: inherit; font-size: 12px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase;
+    color: var(--text); cursor: pointer; text-align: left;
+    transition: background .1s;
+  }
+  .drop-item:last-child { border-bottom: none; }
+  .drop-item:hover { background: var(--bg); }
+
   /* ── HOME VIEW ──────────────────────────────────────── */
   #view-home {
     padding: 20px 16px; gap: 18px; overflow-y: auto;
@@ -407,7 +480,60 @@ export const HOME_HTML = `<!DOCTYPE html>
       </div>
     </div>
 
+    <div id="fab-usuarios">
+      <div id="dropdown-usuarios" class="hidden">
+        <button class="drop-item" id="drop-nuevo-usuario">Nuevo Usuario</button>
+        <button class="drop-item" id="drop-cambiar-usuario">Cambiar Usuario</button>
+      </div>
+      <button id="btn-usuarios">Usuarios</button>
+    </div>
+
   </div><!-- /view-home -->
+
+  <!-- MODAL CAMBIAR USUARIO -->
+  <div id="modal-cambiar" class="modal-overlay hidden">
+    <div class="modal-box">
+      <h2 class="modal-title">Cambiar Usuario</h2>
+      <div id="cambiar-lista"></div>
+      <div class="modal-actions">
+        <button id="cambiar-cancelar" class="btn-secondary">Cancelar</button>
+        <button id="cambiar-ok" class="btn-primary">Cambiar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL NUEVO PERFIL -->
+  <div id="modal-perfil" class="modal-overlay hidden">
+    <div class="modal-box">
+      <h2 class="modal-title">Nuevo Perfil</h2>
+
+      <div class="field">
+        <label for="perfil-nombre">Nombre</label>
+        <input id="perfil-nombre" type="text" placeholder="Tu nombre completo" maxlength="60">
+      </div>
+
+      <div class="field">
+        <label for="perfil-edad">Edad</label>
+        <input id="perfil-edad" type="number" placeholder="##" min="1" max="120"
+               style="width:72px;text-align:center;">
+      </div>
+
+      <div class="field">
+        <label for="perfil-sexo">Sexo</label>
+        <input id="perfil-sexo" type="text" placeholder="Ej. Masculino / Femenino" maxlength="30">
+      </div>
+
+      <div class="field">
+        <label for="perfil-direccion">Dirección</label>
+        <input id="perfil-direccion" type="text" placeholder="Tu dirección habitual" maxlength="120">
+      </div>
+
+      <div class="modal-actions">
+        <button id="perfil-cancelar" class="btn-secondary">Cancelar</button>
+        <button id="perfil-hecho" class="btn-primary">Hecho</button>
+      </div>
+    </div>
+  </div>
 
   <!-- CHAT VIEW -->
   <div class="view" id="view-chat">
@@ -440,7 +566,7 @@ function getCookie(n) {
 }
 function setCookie(n, v, days) {
   const e = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie = \`\${n}=\${encodeURIComponent(v)};expires=\${e};path=/;SameSite=Lax\`;
+  document.cookie = n + "=" + encodeURIComponent(v) + ";expires=" + e + ";path=/;SameSite=Lax";
 }
 function delCookie(n) {
   document.cookie = n + "=;expires=Thu,01 Jan 1970 00:00:00 GMT;path=/";
@@ -545,33 +671,69 @@ loginNameEl.addEventListener("keydown", e => { if (e.key === "Enter") loginPassE
 loginPassEl.addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
 userBadge.addEventListener("click", doLogout);
 
+/* ── fab usuarios + dropdown ── */
+const modalPerfil    = $("modal-perfil");
+const dropdown       = $("dropdown-usuarios");
+
+$("btn-usuarios").addEventListener("click", e => {
+  e.stopPropagation();
+  dropdown.classList.toggle("hidden");
+});
+document.addEventListener("click", () => dropdown.classList.add("hidden"));
+
+$("drop-nuevo-usuario").addEventListener("click", () => {
+  dropdown.classList.add("hidden");
+  modalPerfil.classList.remove("hidden");
+  $("perfil-nombre").focus();
+});
+$("drop-cambiar-usuario").addEventListener("click", async () => {
+  dropdown.classList.add("hidden");
+  const lista = $("cambiar-lista");
+  lista.innerHTML = "";
+  let selectedId = null;
+
+  let perfiles = [];
+  try {
+    const res = await fetch("profiles");
+    perfiles = await res.json();
+  } catch { /* ignorar */ }
+
+  if (!perfiles.length) {
+    const p = document.createElement("p");
+    p.className = "cambiar-empty";
+    p.textContent = "Aún no hay registros.";
+    lista.appendChild(p);
+  } else {
+    perfiles.forEach(({ user_id, nombre }) => {
+      const btn = document.createElement("button");
+      btn.className = "usuario-item";
+      btn.textContent = nombre || user_id;
+      btn.addEventListener("click", () => {
+        lista.querySelectorAll(".usuario-item").forEach(b => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        selectedId = user_id;
+      });
+      lista.appendChild(btn);
+    });
+  }
+
+  $("modal-cambiar").classList.remove("hidden");
+});
+
+$("cambiar-cancelar").addEventListener("click", () => $("modal-cambiar").classList.add("hidden"));
+$("cambiar-ok").addEventListener("click", () => $("modal-cambiar").classList.add("hidden"));
+$("modal-cambiar").addEventListener("click", e => { if (e.target === $("modal-cambiar")) $("modal-cambiar").classList.add("hidden"); });
+
+$("perfil-cancelar").addEventListener("click", () => modalPerfil.classList.add("hidden"));
+$("perfil-hecho").addEventListener("click", () => modalPerfil.classList.add("hidden"));
+modalPerfil.addEventListener("click", e => { if (e.target === modalPerfil) modalPerfil.classList.add("hidden"); });
+
 // restore session
 const savedName = decodeURIComponent(getCookie("userName") ?? "") || sessionStorage.getItem("userName");
 const savedId   = decodeURIComponent(getCookie("userId")   ?? "") || sessionStorage.getItem("userId");
 if (savedName && savedId) {
   if (getCookie("userName")) rememberEl.checked = true;
   applySession(savedName, savedId);
-}
-
-/* ── tabs ── */
-function switchTab(name) {
-  document.querySelectorAll(".tab").forEach(t =>
-    t.classList.toggle("active", t.dataset.view === name));
-  document.querySelectorAll(".view").forEach(v =>
-    v.classList.toggle("active", v.id === "view-" + name));
-  if (name === "chat") $("box").focus();
-}
-document.querySelectorAll(".tab").forEach(t =>
-  t.addEventListener("click", () => switchTab(t.dataset.view)));
-
-/* ── stats ── */
-async function loadStats() {
-  if (!userId) return;
-  try {
-    const res = await fetch("trips?userId=" + encodeURIComponent(userId));
-    const trips = await res.json();
-    $("stat-trips").textContent = trips.length || "0";
-  } catch { /* ignore */ }
 }
 
 /* ── chat ── */
@@ -585,6 +747,42 @@ function addMsg(cls, text) {
   logEl.scrollTop = logEl.scrollHeight;
   return d;
 }
+
+/* ── stats ── */
+async function loadStats() {
+  if (!userId) return;
+  try {
+    const res = await fetch("trips?userId=" + encodeURIComponent(userId));
+    const trips = await res.json();
+    $("stat-trips").textContent = trips.length || "0";
+  } catch { /* ignore */ }
+}
+
+/* ── tabs ── */
+let chatGreeted = false;
+
+async function showChatGreeting() {
+  if (chatGreeted) return;
+  chatGreeted = true;
+  logEl.innerHTML = "";
+  let nombre = "N/A";
+  try {
+    const res = await fetch("profile?userId=" + encodeURIComponent(userId ?? ""));
+    const data = await res.json();
+    if (data.nombre) nombre = data.nombre;
+  } catch { /* sin perfil */ }
+  addMsg("agent", "Usuario: " + nombre + "\\n¿A dónde iremos hoy?");
+}
+
+function switchTab(name) {
+  document.querySelectorAll(".tab").forEach(t =>
+    t.classList.toggle("active", t.dataset.view === name));
+  document.querySelectorAll(".view").forEach(v =>
+    v.classList.toggle("active", v.id === "view-" + name));
+  if (name === "chat") { showChatGreeting(); $("box").focus(); }
+}
+document.querySelectorAll(".tab").forEach(t =>
+  t.addEventListener("click", () => switchTab(t.dataset.view)));
 
 async function ask(message) {
   sendEl.disabled = true;

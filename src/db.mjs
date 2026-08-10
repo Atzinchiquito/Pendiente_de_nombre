@@ -31,7 +31,8 @@ const stmts = {
   putSession: db.prepare(
     "INSERT OR REPLACE INTO sessions (session_id, messages, expires_at) VALUES (?, ?, ?)"
   ),
-  getProfile: db.prepare("SELECT * FROM profiles WHERE user_id = ?"),
+  getProfile:    db.prepare("SELECT * FROM profiles WHERE user_id = ?"),
+  getAllProfiles: db.prepare("SELECT user_id, nombre FROM profiles ORDER BY updated_at DESC"),
   putProfile: db.prepare(
     "INSERT OR REPLACE INTO profiles (user_id, nombre, edad, sexo, ubicacion, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
   ),
@@ -43,6 +44,10 @@ export function getSession(sessionId) {
 
 export function putSession(sessionId, messages, expiresAt) {
   stmts.putSession.run(sessionId, messages, expiresAt ?? null);
+}
+
+export function getAllProfiles() {
+  return stmts.getAllProfiles.all();
 }
 
 export function getProfile(userId) {
