@@ -884,7 +884,9 @@ $("chat-form").addEventListener("submit", e => {
 const micEl = $("mic");
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (!SR) {
-  micEl.style.display = "none";
+  micEl.addEventListener("click", () =>
+    addMsg("error", "⚠ Tu navegador no soporta entrada por voz. Prueba con Chrome o Safari.")
+  );
 } else {
   const rec = new SR();
   rec.lang = "es-MX"; rec.interimResults = true; rec.continuous = false;
