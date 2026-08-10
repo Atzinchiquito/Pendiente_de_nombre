@@ -899,7 +899,7 @@ if (!SR) {
     boxEl.value = final + interim;
   };
   rec.onerror = e => { if (e.error !== "aborted") addMsg("error", "⚠ Micrófono: " + e.error); };
-  micEl.addEventListener("click", () => { mic.classList.contains("listening") ? rec.stop() : rec.start(); });
+  micEl.addEventListener("click", () => { micEl.classList.contains("listening") ? rec.stop() : rec.start(); });
 }
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
