@@ -1,0 +1,645 @@
+export const HOME_HTML = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f2e8ed">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Agente">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>Agente CDMX</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700;900&display=swap');
+  :root {
+    --bg:     #f2e8ed;
+    --panel:  #fdf6f9;
+    --accent: #e8006e;
+    --accent2:#ff2d87;
+    --text:   #111111;
+    --dim:    #666666;
+    --border: #111111;
+    --shadow: 4px 4px 0 #111111;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Space Grotesk', -apple-system, sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column;
+  }
+
+  /* ── LOGIN SCREEN ───────────────────────────────────── */
+  #login-screen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 300; padding: 32px 24px;
+    transition: opacity .25s ease, transform .25s ease;
+  }
+  #login-screen.leaving {
+    opacity: 0; transform: translateY(-18px); pointer-events: none;
+  }
+  #login-screen.hidden { display: none; }
+
+  .login-box {
+    width: 100%; max-width: 360px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .login-logo {
+    width: 56px; height: 56px; background: var(--accent);
+    border: 3px solid var(--border); box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: center; color: #fff;
+  }
+  .login-box h1 {
+    font-size: 32px; font-weight: 900; text-transform: uppercase;
+    letter-spacing: .03em; line-height: 1;
+  }
+  .login-box .subtitle {
+    font-size: 13px; color: var(--dim); margin-top: -10px;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label {
+    font-size: 10px; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text);
+  }
+  .field input {
+    padding: 12px 14px; border: 2.5px solid var(--border);
+    background: var(--panel); color: var(--text);
+    font-size: 15px; font-family: inherit; outline: none;
+    border-radius: 0; box-shadow: 4px 4px 0 var(--border);
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .field input:focus {
+    border-color: var(--accent); box-shadow: 4px 4px 0 var(--accent);
+  }
+  .field input.invalid {
+    border-color: var(--accent); box-shadow: 4px 4px 0 #ff9ab9;
+  }
+  .field-hint {
+    font-size: 11px; color: var(--accent); min-height: 15px;
+    font-weight: 700; letter-spacing: .04em;
+  }
+
+  .remember-row {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .04em; cursor: pointer; user-select: none;
+  }
+  .remember-row input[type=checkbox] { display: none; }
+  .check-box {
+    width: 20px; height: 20px; border: 2.5px solid var(--border);
+    background: var(--panel); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .remember-row input:checked + .check-box { background: var(--accent); border-color: var(--accent); }
+  .check-box svg { display: none; }
+  .remember-row input:checked + .check-box svg { display: block; }
+
+  #login-btn {
+    padding: 14px; border: 2.5px solid var(--border); border-radius: 0;
+    background: var(--accent); color: #fff; font-size: 15px; font-weight: 900;
+    font-family: inherit; cursor: pointer; letter-spacing: .08em;
+    text-transform: uppercase; box-shadow: var(--shadow);
+    transition: box-shadow .1s, transform .1s;
+  }
+  #login-btn:active { box-shadow: none; transform: translate(4px,4px); }
+  #login-btn:disabled { opacity: .5; cursor: default; }
+
+  .divider {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--dim);
+  }
+  .divider::before, .divider::after {
+    content: ''; flex: 1; height: 2px; background: var(--border);
+  }
+
+  /* ── MAIN APP ───────────────────────────────────────── */
+  #app { display: none; flex-direction: column; min-height: 100vh; }
+  #app.visible { display: flex; }
+
+  header {
+    padding: 14px 16px; background: var(--accent);
+    border-bottom: 3px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  header h1 {
+    font-size: 15px; font-weight: 900; letter-spacing: .07em;
+    text-transform: uppercase; color: #fff; flex: 1;
+  }
+  .hdr-btn {
+    width: 36px; height: 36px; border: 2px solid #fff;
+    background: transparent; color: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; border-radius: 0;
+  }
+  .hdr-btn:active { background: rgba(255,255,255,.2); }
+  #user-badge {
+    font-size: 11px; font-weight: 700; color: #fff;
+    cursor: pointer; text-transform: uppercase; letter-spacing: .04em;
+    opacity: .85; white-space: nowrap;
+  }
+
+  /* nav tabs */
+  nav {
+    display: flex; border-bottom: 3px solid var(--border);
+    background: var(--panel);
+  }
+  .tab {
+    flex: 1; padding: 11px 8px; border: none; background: none;
+    font-family: inherit; font-size: 11px; font-weight: 700;
+    letter-spacing: .07em; text-transform: uppercase; cursor: pointer;
+    color: var(--dim); border-right: 2px solid var(--border);
+    transition: background .1s, color .1s;
+  }
+  .tab:last-child { border-right: none; }
+  .tab.active { background: var(--accent); color: #fff; }
+
+  /* views */
+  .view { display: none; flex: 1; flex-direction: column; }
+  .view.active { display: flex; }
+
+  /* ── HOME VIEW ──────────────────────────────────────── */
+  #view-home {
+    padding: 20px 16px; gap: 18px; overflow-y: auto;
+    background: var(--bg);
+  }
+
+  .section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--dim); margin-bottom: 10px;
+  }
+
+  /* próximo viaje */
+  .next-trip-card {
+    border: 3px solid var(--border); background: var(--panel);
+    box-shadow: var(--shadow); padding: 18px 16px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .trip-header {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  }
+  .trip-badge {
+    font-size: 9px; font-weight: 900; letter-spacing: .1em;
+    text-transform: uppercase; background: var(--accent); color: #fff;
+    padding: 3px 8px; border: 1.5px solid var(--border); white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .trip-time {
+    font-size: 28px; font-weight: 900; line-height: 1; letter-spacing: -.01em;
+  }
+  .trip-time span { font-size: 13px; font-weight: 400; color: var(--dim); margin-left: 4px; }
+  .trip-route-row {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .trip-origin, .trip-dest {
+    font-size: 14px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .03em;
+  }
+  .route-arrow {
+    font-size: 18px; color: var(--accent); flex-shrink: 0;
+  }
+  .trip-pills {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .pill {
+    padding: 3px 10px; border: 2px solid var(--border);
+    font-size: 11px; font-weight: 700; letter-spacing: .04em;
+    text-transform: uppercase; background: var(--bg);
+  }
+  .pill.metro   { background: #d4006e; color: #fff; border-color: #d4006e; }
+  .pill.metrobus{ background: #e85a00; color: #fff; border-color: #e85a00; }
+  .pill.walk    { background: #007a3d; color: #fff; border-color: #007a3d; }
+  .trip-cta {
+    display: flex; gap: 8px;
+  }
+  .btn-primary {
+    flex: 1; padding: 11px 10px; border: 2.5px solid var(--border); border-radius: 0;
+    background: var(--accent); color: #fff; font-size: 12px; font-weight: 900;
+    font-family: inherit; cursor: pointer; letter-spacing: .07em;
+    text-transform: uppercase; box-shadow: 3px 3px 0 var(--border);
+    transition: box-shadow .1s, transform .1s;
+  }
+  .btn-primary:active { box-shadow: none; transform: translate(3px,3px); }
+  .btn-secondary {
+    flex: 1; padding: 11px 10px; border: 2.5px solid var(--border); border-radius: 0;
+    background: var(--panel); color: var(--text); font-size: 12px; font-weight: 900;
+    font-family: inherit; cursor: pointer; letter-spacing: .07em;
+    text-transform: uppercase; box-shadow: 3px 3px 0 var(--border);
+    transition: box-shadow .1s, transform .1s;
+  }
+  .btn-secondary:active { box-shadow: none; transform: translate(3px,3px); }
+
+  /* empty state card */
+  .empty-card {
+    border: 3px dashed #bbb; padding: 28px 20px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 12px; text-align: center;
+  }
+  .empty-icon {
+    width: 52px; height: 52px; border: 3px solid var(--border);
+    background: var(--panel); box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .empty-card p {
+    font-size: 13px; color: var(--dim); line-height: 1.5;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+
+  /* quick stats */
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card {
+    border: 2.5px solid var(--border); background: var(--panel);
+    box-shadow: 3px 3px 0 var(--border); padding: 14px 12px;
+  }
+  .stat-number {
+    font-size: 28px; font-weight: 900; line-height: 1;
+    color: var(--accent);
+  }
+  .stat-label {
+    font-size: 10px; font-weight: 700; color: var(--dim);
+    letter-spacing: .08em; text-transform: uppercase; margin-top: 4px;
+  }
+
+  /* ── CHAT VIEW ──────────────────────────────────────── */
+  #view-chat { flex: 1; display: none; flex-direction: column; overflow: hidden; }
+  #view-chat.active { display: flex; }
+  #log {
+    flex: 1; overflow-y: auto; padding: 16px 16px 10px;
+    display: flex; flex-direction: column; gap: 16px; background: var(--bg);
+  }
+  .msg {
+    max-width: 80%; padding: 10px 14px; border: 2.5px solid var(--border);
+    line-height: 1.5; white-space: pre-wrap; word-wrap: break-word;
+    font-size: 14px; margin-bottom: 4px;
+  }
+  .user  { align-self: flex-end; background: var(--accent); color: #fff;
+           box-shadow: var(--shadow); font-weight: 700; }
+  .agent { align-self: flex-start; background: var(--panel); box-shadow: var(--shadow); }
+  .tool  { align-self: flex-start; font-size: 11px; color: var(--dim);
+           padding: 3px 8px; border: 1.5px dashed #aaa;
+           letter-spacing: .04em; text-transform: uppercase; }
+  .error { align-self: flex-start; background: #fff0f4; border: 2px solid var(--accent);
+           color: var(--accent); font-size: 13px; padding: 6px 10px; }
+  .sys   { align-self: center; font-size: 11px; color: var(--dim);
+           text-transform: uppercase; letter-spacing: .08em; }
+
+  form#chat-form {
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px 14px 12px; background: var(--panel);
+    border-top: 3px solid var(--border);
+  }
+  #box {
+    flex: 1; padding: 10px 14px; border: 2.5px solid var(--border);
+    background: var(--bg); color: var(--text); font-size: 14px;
+    font-family: inherit; outline: none; border-radius: 0;
+  }
+  #box:focus { border-color: var(--accent); box-shadow: 3px 3px 0 var(--accent); }
+  #box::placeholder { color: #aaa; }
+  .icon-btn {
+    width: 42px; height: 42px; padding: 0; border: 2.5px solid var(--border);
+    border-radius: 0; cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 3px 3px 0 var(--border);
+    transition: box-shadow .1s, transform .1s;
+  }
+  .icon-btn:active  { box-shadow: none; transform: translate(3px,3px); }
+  .icon-btn:disabled{ opacity: .4; cursor: default; box-shadow: none; }
+  #send { background: var(--accent); color: #fff; }
+  #mic  { background: var(--panel); color: var(--text); }
+  #mic.listening { background: var(--accent); color: #fff; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.5} }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ─────────────────────────────────────────── -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
+    </div>
+    <div>
+      <h1>Bienvenido</h1>
+      <p class="subtitle">Planificador de transporte CDMX</p>
+    </div>
+
+    <div class="field">
+      <label for="login-name">Nombre</label>
+      <input id="login-name" type="text" placeholder="Tu nombre" autocomplete="name" maxlength="40">
+      <span class="field-hint" id="hint-name"></span>
+    </div>
+
+    <label class="remember-row">
+      <input type="checkbox" id="remember-me">
+      <span class="check-box">
+        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1.5 6 4.5 9 10.5 3"/>
+        </svg>
+      </span>
+      Recuérdame
+    </label>
+
+    <button id="login-btn">Entrar</button>
+
+    <div class="divider">o continúa sin cuenta</div>
+    <button id="guest-btn" class="btn-secondary">Entrar como invitado</button>
+  </div>
+</div>
+
+<!-- ── APP ───────────────────────────────────────────── -->
+<div id="app">
+  <header>
+    <h1 id="greeting">Agente CDMX</h1>
+    <span id="user-badge"></span>
+  </header>
+
+  <nav>
+    <button class="tab active" data-view="home">Inicio</button>
+    <button class="tab"        data-view="chat">Chat</button>
+  </nav>
+
+  <!-- HOME VIEW -->
+  <div class="view active" id="view-home">
+
+    <p class="section-label">Próximo viaje</p>
+
+    <!-- placeholder: sin viaje agendado -->
+    <div class="empty-card" id="no-trip">
+      <div class="empty-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+      </div>
+      <p>Sin viajes agendados<br>— próximamente —</p>
+      <button class="btn-primary" onclick="switchTab('chat')">Planificar viaje</button>
+    </div>
+
+    <!-- placeholder: viaje de ejemplo (oculto por defecto, visible cuando haya datos) -->
+    <div class="next-trip-card" id="trip-card" style="display:none">
+      <div class="trip-header">
+        <div>
+          <div class="trip-time">08:15 <span>hrs</span></div>
+          <div style="font-size:11px;color:var(--dim);font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-top:2px">Lunes 11 ago</div>
+        </div>
+        <span class="trip-badge">Próximo</span>
+      </div>
+      <div class="trip-route-row">
+        <span class="trip-origin" id="tc-origin">—</span>
+        <span class="route-arrow">→</span>
+        <span class="trip-dest"   id="tc-dest">—</span>
+      </div>
+      <div class="trip-pills" id="tc-pills"></div>
+      <div class="trip-cta">
+        <button class="btn-primary"  onclick="switchTab('chat')">Ver ruta</button>
+        <button class="btn-secondary">Editar</button>
+      </div>
+    </div>
+
+    <!-- stats -->
+    <p class="section-label" style="margin-top:4px">Tu actividad</p>
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-number" id="stat-trips">—</div>
+        <div class="stat-label">Viajes guardados</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">CDMX</div>
+        <div class="stat-label">Ciudad activa</div>
+      </div>
+    </div>
+
+  </div><!-- /view-home -->
+
+  <!-- CHAT VIEW -->
+  <div class="view" id="view-chat">
+    <div id="log"><div class="sys">Escribe o habla para comenzar</div></div>
+    <form id="chat-form">
+      <input id="box" placeholder="Escribe algo…" autocomplete="off">
+      <button class="icon-btn" id="mic" type="button" title="Hablar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/>
+          <line x1="12" y1="19" x2="12" y2="22"/><line x1="9" y1="22" x2="15" y2="22"/>
+        </svg>
+      </button>
+      <button class="icon-btn" id="send">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </form>
+  </div><!-- /view-chat -->
+
+</div><!-- /app -->
+
+<script>
+"use strict";
+/* ── utils ── */
+const $ = id => document.getElementById(id);
+
+function getCookie(n) {
+  return document.cookie.split("; ").find(r => r.startsWith(n + "="))?.split("=")[1] ?? null;
+}
+function setCookie(n, v, days) {
+  const e = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = \`\${n}=\${encodeURIComponent(v)};expires=\${e};path=/;SameSite=Lax\`;
+}
+function delCookie(n) {
+  document.cookie = n + "=;expires=Thu,01 Jan 1970 00:00:00 GMT;path=/";
+}
+async function hashName(name) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(name.trim().toLowerCase()));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("").slice(0,32);
+}
+
+/* ── session state ── */
+let userId = null, currentUser = null;
+const sessionId = crypto.randomUUID();
+
+/* ── login logic ── */
+const loginScreen  = $("login-screen");
+const loginNameEl  = $("login-name");
+const hintName     = $("hint-name");
+const rememberEl   = $("remember-me");
+const loginBtn     = $("login-btn");
+const guestBtn     = $("guest-btn");
+const userBadge    = $("user-badge");
+const greeting     = $("greeting");
+
+function applySession(name, id) {
+  currentUser = name;
+  userId = id;
+  const display = name === "invitado" ? "Invitado" : name;
+  userBadge.textContent = display + " · salir";
+  greeting.textContent  = "Hola, " + display.split(" ")[0];
+  $("app").classList.add("visible");
+  // transition out
+  loginScreen.classList.add("leaving");
+  setTimeout(() => loginScreen.classList.add("hidden"), 260);
+  loadStats();
+}
+
+function doLogout() {
+  delCookie("userName"); delCookie("userId");
+  sessionStorage.removeItem("userName"); sessionStorage.removeItem("userId");
+  userId = null; currentUser = null;
+  userBadge.textContent = "";
+  loginNameEl.value = "";
+  rememberEl.checked = false;
+  $("app").classList.remove("visible");
+  loginScreen.classList.remove("hidden", "leaving");
+}
+
+async function doLogin(name, remember) {
+  const id = await hashName(name);
+  if (remember) {
+    setCookie("userName", name, 30); setCookie("userId", id, 30);
+    sessionStorage.removeItem("userName"); sessionStorage.removeItem("userId");
+  } else {
+    delCookie("userName"); delCookie("userId");
+    sessionStorage.setItem("userName", name); sessionStorage.setItem("userId", id);
+  }
+  applySession(name, id);
+}
+
+async function doGuest() {
+  const id = await hashName("guest-" + Date.now());
+  sessionStorage.setItem("userName", "invitado");
+  sessionStorage.setItem("userId", id);
+  applySession("invitado", id);
+}
+
+// validate & submit
+loginBtn.addEventListener("click", async () => {
+  const name = loginNameEl.value.trim();
+  if (!name) {
+    hintName.textContent = "Ingresa tu nombre para continuar.";
+    loginNameEl.classList.add("invalid");
+    loginNameEl.focus();
+    return;
+  }
+  hintName.textContent = "";
+  loginNameEl.classList.remove("invalid");
+  loginBtn.disabled = true; loginBtn.textContent = "Cargando…";
+  await doLogin(name, rememberEl.checked);
+  loginBtn.disabled = false; loginBtn.textContent = "Entrar";
+});
+loginNameEl.addEventListener("input",  () => { hintName.textContent = ""; loginNameEl.classList.remove("invalid"); });
+loginNameEl.addEventListener("keydown", e => { if (e.key === "Enter") loginBtn.click(); });
+guestBtn.addEventListener("click", doGuest);
+userBadge.addEventListener("click", doLogout);
+
+// restore session
+const savedName = decodeURIComponent(getCookie("userName") ?? "") || sessionStorage.getItem("userName");
+const savedId   = decodeURIComponent(getCookie("userId")   ?? "") || sessionStorage.getItem("userId");
+if (savedName && savedId) {
+  if (getCookie("userName")) rememberEl.checked = true;
+  applySession(savedName, savedId);
+}
+
+/* ── tabs ── */
+function switchTab(name) {
+  document.querySelectorAll(".tab").forEach(t =>
+    t.classList.toggle("active", t.dataset.view === name));
+  document.querySelectorAll(".view").forEach(v =>
+    v.classList.toggle("active", v.id === "view-" + name));
+  if (name === "chat") $("box").focus();
+}
+document.querySelectorAll(".tab").forEach(t =>
+  t.addEventListener("click", () => switchTab(t.dataset.view)));
+
+/* ── stats ── */
+async function loadStats() {
+  if (!userId) return;
+  try {
+    const res = await fetch("trips?userId=" + encodeURIComponent(userId));
+    const trips = await res.json();
+    $("stat-trips").textContent = trips.length || "0";
+  } catch { /* ignore */ }
+}
+
+/* ── chat ── */
+const logEl = $("log"), boxEl = $("box"), sendEl = $("send");
+
+function addMsg(cls, text) {
+  const d = document.createElement("div");
+  d.className = "msg " + cls;
+  d.textContent = text;
+  logEl.appendChild(d);
+  logEl.scrollTop = logEl.scrollHeight;
+  return d;
+}
+
+async function ask(message) {
+  sendEl.disabled = true;
+  let current = null;
+  try {
+    const res = await fetch("chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, sessionId, userId }),
+    });
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\\n"); buf = lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const m = JSON.parse(line);
+        if (m.type === "token") {
+          if (!current) current = addMsg("agent", "");
+          current.textContent += m.text;
+          logEl.scrollTop = logEl.scrollHeight;
+        } else if (m.type === "tool") {
+          current = null; addMsg("tool", "🔧 " + m.name);
+        } else if (m.type === "error") {
+          current = null; addMsg("error", "⚠ " + m.text);
+        }
+      }
+    }
+  } catch (err) { addMsg("error", "⚠ " + err.message); }
+  sendEl.disabled = false; boxEl.focus();
+}
+
+$("chat-form").addEventListener("submit", e => {
+  e.preventDefault();
+  const text = boxEl.value.trim();
+  if (!text || sendEl.disabled) return;
+  addMsg("user", text); boxEl.value = "";
+  ask(text);
+});
+
+/* ── mic ── */
+const micEl = $("mic");
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!SR) {
+  micEl.style.display = "none";
+} else {
+  const rec = new SR();
+  rec.lang = "es-MX"; rec.interimResults = true; rec.continuous = false;
+  let final = "";
+  rec.onstart  = () => { micEl.classList.add("listening"); final = ""; };
+  rec.onend    = () => {
+    micEl.classList.remove("listening");
+    if (final.trim()) { boxEl.value = final.trim(); boxEl.dispatchEvent(new Event("input")); }
+  };
+  rec.onresult = e => {
+    let interim = "";
+    for (const r of e.results) { if (r.isFinal) final += r[0].transcript; else interim = r[0].transcript; }
+    boxEl.value = final + interim;
+  };
+  rec.onerror = e => { if (e.error !== "aborted") addMsg("error", "⚠ Micrófono: " + e.error); };
+  micEl.addEventListener("click", () => { mic.classList.contains("listening") ? rec.stop() : rec.start(); });
+}
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>`;

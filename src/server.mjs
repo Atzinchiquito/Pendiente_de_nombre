@@ -1,6 +1,6 @@
 import "dotenv/config";
 import express from "express";
-import { CHAT_HTML } from "./chat-page.mjs";
+import { HOME_HTML } from "./home-page.mjs";
 import { answerWith, getTrips } from "./agent.mjs";
 
 const MANIFEST = JSON.stringify({
@@ -46,7 +46,7 @@ app.use(express.json());
 
 app.get("/", (req, res) => {
   res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.send(CHAT_HTML);
+  res.send(HOME_HTML);
 });
 
 app.get("/manifest.json", (req, res) => {
