@@ -1,4 +1,7 @@
-import "dotenv/config";
+import { config } from "dotenv";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+config({ path: join(dirname(fileURLToPath(import.meta.url)), "..", ".env") });
 import express from "express";
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import { HOME_HTML } from "./home-page.mjs";

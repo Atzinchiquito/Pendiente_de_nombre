@@ -107,10 +107,7 @@ const getTransitRoute = tool({
       return `Error contacting Google Maps API: ${err.message}`;
     }
 
-    if (data.status === "REQUEST_DENIED") return `Google Maps API error: ${data.error_message ?? "invalid or missing API key."}`;
-    if (data.status === "OVER_QUERY_LIMIT") return "Google Maps API error: rate limit exceeded, try again later.";
-    if (data.status === "NOT_FOUND" || data.status === "ZERO_RESULTS") return `No se encontraron rutas de transporte público de '${origin}' a '${destination}'.`;
-    if (data.status !== "OK") return `Google Maps API returned status: ${data.status}.`;
+    if (data.status !== "OK") return `Google Maps API error — status: ${data.status}. ${data.error_message ?? ""}`.trim();
 
     const routes = data.routes.slice(0, 3).map((route) => {
       const leg = route.legs[0];
