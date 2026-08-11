@@ -17,12 +17,13 @@ db.exec(`
     expires_at INTEGER
   );
   CREATE TABLE IF NOT EXISTS profiles (
-    user_id    TEXT PRIMARY KEY,
-    nombre     TEXT,
-    edad       INTEGER,
-    sexo       TEXT,
-    ubicacion  TEXT,
-    updated_at INTEGER
+    user_id      TEXT PRIMARY KEY,
+    login_user_id TEXT,
+    nombre       TEXT,
+    edad         INTEGER,
+    sexo         TEXT,
+    ubicacion    TEXT,
+    updated_at   INTEGER
   );
   CREATE TABLE IF NOT EXISTS users (
     user_id    TEXT PRIMARY KEY,
@@ -37,15 +38,23 @@ db.exec(`
   );
 `);
 
+// Migration: add login_user_id column if it doesn't exist yet
+const profileCols = db.prepare("PRAGMA table_info(profiles)").all().map(r => r.name);
+if (!profileCols.includes("login_user_id")) {
+  db.exec("ALTER TABLE profiles ADD COLUMN login_user_id TEXT");
+}
+
 const stmts = {
   getSession: db.prepare("SELECT messages FROM sessions WHERE session_id = ?"),
   putSession: db.prepare(
     "INSERT OR REPLACE INTO sessions (session_id, messages, expires_at) VALUES (?, ?, ?)"
   ),
-  getProfile:    db.prepare("SELECT * FROM profiles WHERE user_id = ?"),
-  getAllProfiles: db.prepare("SELECT user_id, nombre FROM profiles ORDER BY updated_at DESC"),
+  getProfile:         db.prepare("SELECT * FROM profiles WHERE user_id = ?"),
+  getAllProfiles:      db.prepare("SELECT user_id, nombre FROM profiles WHERE login_user_id = ? ORDER BY updated_at DESC"),
+  countProfiles:      db.prepare("SELECT COUNT(*) as n FROM profiles WHERE login_user_id = ?"),
+  deleteProfile:      db.prepare("DELETE FROM profiles WHERE user_id = ?"),
   putProfile: db.prepare(
-    "INSERT OR REPLACE INTO profiles (user_id, nombre, edad, sexo, ubicacion, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
+    "INSERT OR REPLACE INTO profiles (user_id, login_user_id, nombre, edad, sexo, ubicacion, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
   ),
   getUserByName: db.prepare("SELECT * FROM users WHERE username = ?"),
   createUser: db.prepare(
@@ -65,16 +74,24 @@ export function putSession(sessionId, messages, expiresAt) {
   stmts.putSession.run(sessionId, messages, expiresAt ?? null);
 }
 
-export function getAllProfiles() {
-  return stmts.getAllProfiles.all();
+export function getAllProfiles(loginUserId) {
+  return stmts.getAllProfiles.all(loginUserId);
+}
+
+export function countProfiles(loginUserId) {
+  return stmts.countProfiles.get(loginUserId).n;
+}
+
+export function deleteProfile(userId) {
+  stmts.deleteProfile.run(userId);
 }
 
 export function getProfile(userId) {
   return stmts.getProfile.get(userId) ?? null;
 }
 
-export function putProfile(userId, { nombre, edad, sexo, ubicacion }) {
-  stmts.putProfile.run(userId, nombre ?? null, edad ?? null, sexo ?? null, ubicacion ?? null, Date.now());
+export function putProfile(userId, loginUserId, { nombre, edad, sexo, ubicacion }) {
+  stmts.putProfile.run(userId, loginUserId, nombre ?? null, edad ?? null, sexo ?? null, ubicacion ?? null, Date.now());
 }
 
 export function getUserByName(username) {
